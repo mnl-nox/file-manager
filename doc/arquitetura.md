@@ -7,8 +7,8 @@ bem definidas:
 
 ```text
 +----------------------+
-| Interface de terminal|
-|        (ui/)         |
+| Interface de terminal |
+|        (ui/)          |
 +----------+-----------+
            |
            v
@@ -39,12 +39,10 @@ bem definidas:
 - Nao executar diretamente chamadas de baixo nivel quando houver uma camada
   de servico disponivel.
 
-### Controle e comandos (`src/`)
+### Inicializacao (`src/`)
 
-- Interpretar a entrada do usuario.
-- Validar argumentos e caminhos.
-- Encaminhar cada comando para o servico correspondente.
-- Converter resultados em estados que a interface possa apresentar.
+- Inicializar a sessao com o diretorio de trabalho atual.
+- Iniciar a interface de terminal.
 
 ### Operacoes de arquivo (`src/` e `include/`)
 
@@ -75,3 +73,12 @@ dados externos e nao depender de um banco de dados.
 - Tratamento de erros proximo da chamada que pode falhar.
 - Funcoes pequenas e testaveis.
 - Portabilidade sempre que nao comprometer a clareza.
+
+## Implementacao atual
+
+- `src/main.c` inicia `FileManagerSession` e chama a UI.
+- `ui/terminal_ui.c` le e interpreta os comandos, formata a tabela de
+  listagem e apresenta resultados.
+- `src/file_manager.c` executa as operacoes POSIX sem depender da interface.
+- `include/file_manager.h` e `include/terminal_ui.h` definem os contratos
+  entre os modulos.

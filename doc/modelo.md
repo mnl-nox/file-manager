@@ -2,13 +2,13 @@
 
 ## Entidades principais
 
-| Entidade        | Descricao                              | Atributos previstos                |
+| Entidade        | Descricao                              | Atributos atuais                   |
 | --------------- | -------------------------------------- | ---------------------------------- |
-| Caminho         | Localizacao de um arquivo ou diretorio | texto do caminho, caminho absoluto |
-| Entrada         | Item encontrado em um diretorio        | nome, tipo, tamanho, permissoes    |
-| Diretorio atual | Contexto de navegacao da sessao        | caminho atual                      |
-| Comando         | Acao solicitada pelo usuario           | nome, argumentos                   |
-| Resultado       | Retorno de uma operacao                | sucesso, codigo de erro, mensagem  |
+| Caminho         | Localizacao de um arquivo ou diretorio | texto recebido e caminho resolvido |
+| Entrada         | Item encontrado em um diretorio        | nome e tipo                        |
+| Diretorio atual | Contexto de navegacao da sessao        | `current_directory`                |
+| Comando         | Acao solicitada pelo usuario           | nome e ate tres argumentos         |
+| Resultado       | Retorno de uma operacao                | sucesso, codigo, caminho, mensagem |
 
 ## Operacoes
 
@@ -32,6 +32,12 @@ resultado deve conter ao menos:
 - mensagem adequada para a interface.
 
 A camada de interface nao deve precisar interpretar `errno` diretamente.
+
+## Tipos implementados
+
+O header `include/file_manager.h` declara `FileManagerSession`,
+`FileManagerEntry`, `FileManagerList` e `FileManagerResult`. A UI usa esses
+tipos e nao chama APIs POSIX diretamente.
 
 ## Regras iniciais
 

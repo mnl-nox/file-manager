@@ -1,24 +1,24 @@
 # Requisitos de software
 
-Este documento define os requisitos iniciais do File Manager. Como o codigo
-ainda nao foi implementado, os requisitos abaixo sao a linha de base para a
-primeira versao e podem ser refinados durante a implementacao.
+Este documento define os requisitos do File Manager e registra o estado da
+primeira versao funcional. Os requisitos pendentes permanecem como linha de
+base para as proximas iteracoes.
 
 ## Requisitos funcionais (RF)
 
 | ID    | Requisito                                                      | Prioridade | Criterio de aceite                                                         |
 | ----- | -------------------------------------------------------------- | ---------- | -------------------------------------------------------------------------- |
-| RF-01 | O sistema deve iniciar no diretorio de trabalho atual.         | Alta       | Ao iniciar, o caminho atual e valido e pode ser exibido.                   |
-| RF-02 | O usuario deve poder listar arquivos e diretorios.             | Alta       | A listagem informa nome e tipo de cada entrada.                            |
-| RF-03 | O usuario deve poder navegar para outro diretorio.             | Alta       | Caminhos validos alteram o diretorio atual; caminhos invalidos geram erro. |
-| RF-04 | O usuario deve poder criar arquivos vazios.                    | Alta       | O arquivo e criado no caminho informado quando houver permissao.           |
-| RF-05 | O usuario deve poder criar diretorios.                         | Alta       | O diretorio e criado e pode ser localizado na listagem.                    |
+| RF-01 | O sistema deve iniciar no diretorio de trabalho atual.         | Alta       | Implementado: o caminho atual e exibido no prompt.                         |
+| RF-02 | O usuario deve poder listar arquivos e diretorios.             | Alta       | Implementado: a listagem informa nome e tipo de cada entrada.              |
+| RF-03 | O usuario deve poder navegar para outro diretorio.             | Alta       | Implementado: caminhos invalidos produzem mensagem de erro.                |
+| RF-04 | O usuario deve poder criar arquivos vazios.                    | Alta       | Implementado pelo comando `touch`.                                         |
+| RF-05 | O usuario deve poder criar diretorios.                         | Alta       | Implementado pelo comando `mkdir`.                                         |
 | RF-06 | O usuario deve poder copiar arquivos.                          | Alta       | O destino e criado com o conteudo da origem.                               |
 | RF-07 | O usuario deve poder mover ou renomear itens.                  | Alta       | O item deixa de existir na origem e aparece no destino.                    |
 | RF-08 | O usuario deve poder remover arquivos e diretorios permitidos. | Alta       | O sistema solicita confirmacao quando aplicavel e informa o resultado.     |
 | RF-09 | O usuario deve poder consultar metadados de um item.           | Media      | O sistema exibe tipo, tamanho e permissoes quando disponiveis.             |
-| RF-10 | O sistema deve exibir mensagens para sucesso e falha.          | Alta       | Cada comando termina com uma resposta compreensivel.                       |
-| RF-11 | O usuario deve poder encerrar a sessao pelo comando de saida.  | Alta       | O programa finaliza sem deixar recursos abertos.                           |
+| RF-10 | O sistema deve exibir mensagens para sucesso e falha.          | Alta       | Implementado com indicadores `[OK]` e `[ERROR]`.                           |
+| RF-11 | O usuario deve poder encerrar a sessao pelo comando de saida.  | Alta       | Implementado pelo comando `exit`.                                          |
 
 ## Requisitos nao funcionais (RNF)
 
@@ -38,6 +38,7 @@ primeira versao e podem ser refinados durante a implementacao.
 ## Dependencias e restricoes
 
 - Acoes destrutivas devem respeitar permissoes do sistema operacional.
+- A interface atual nao suporta caminhos contendo espacos.
 - O comportamento de links simbolicos e diretorios recursivos deve ser
   definido antes de implementar essas operacoes.
 - O banco de dados e uma possibilidade futura, nao um requisito da primeira

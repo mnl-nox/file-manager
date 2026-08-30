@@ -1,10 +1,8 @@
 # Documentacao do projeto
 
-Esta pasta concentra a documentacao tecnica inicial do File Manager em C.
-
-O repositorio esta em fase de definicao: os diretorios `src/`, `include/`,
-`ui/` e `data/` ainda nao possuem implementacao. Os documentos abaixo
-registram a proposta funcional e tecnica que deve orientar a implementacao.
+Esta pasta concentra a documentacao tecnica do File Manager em C. A primeira
+versao funcional esta implementada em `src/`, `include/` e `ui/`; `data/`
+permanece reservado para dados de exemplo ou configuracoes futuras.
 
 ## Documentos
 
@@ -16,6 +14,7 @@ registram a proposta funcional e tecnica que deve orientar a implementacao.
 - [Decisoes](decisoes.md): registro das decisoes tecnicas do projeto.
 - [UML](uml.md): diagramas de casos de uso, componentes e sequencia.
 - [Stack](stack.md): tecnologias, ferramentas e dependencias planejadas.
+- [Alteracoes](alteracoes.md): registro das entregas implementadas.
 
 ## Referencia de desenvolvimento
 

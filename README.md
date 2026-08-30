@@ -17,21 +17,24 @@
 
 ---
 
-Gerenciador de arquivos simples desenvolvido em C para praticar manipulacao
-de diretorios, arquivos e comandos no terminal.
+Gerenciador de arquivos simples, interativo e executado no terminal,
+desenvolvido em C para praticar manipulacao de diretorios e arquivos.
 
 ## Objetivo
 
 Este repositorio serve como base para um gerenciador de arquivos de linha de
 comando, com foco em uma implementacao pequena, clara e facil de expandir.
 
-## Funcionalidades previstas
+## Funcionalidades implementadas
 
+- Interface textual com cabecalho, prompt e mensagens de resultado
 - Listar arquivos e diretorios
 - Navegar entre diretorios
-- Criar, copiar, mover e remover arquivos
-- Criar e remover diretorios
-- Exibir informacoes basicas sobre arquivos
+- Criar arquivos vazios e diretorios
+- Exibir o diretorio atual e encerrar a sessao
+
+As operacoes de copiar, mover, remover e consultar metadados permanecem
+planejadas para proximas iteracoes.
 
 ## Requisitos
 
@@ -61,11 +64,10 @@ introduzir uma dependencia de banco antes da avaliacao dos requisitos.
 
 ## Compilacao
 
-Quando os fontes estiverem disponiveis, compile o projeto com um compilador C.
-Por exemplo:
+Compile o projeto com:
 
 ```bash
-gcc -std=c11 -Wall -Wextra -o file-manager *.c
+make
 ```
 
 Execute com:
@@ -74,6 +76,22 @@ Execute com:
 ./file-manager
 ```
 
+Comandos disponiveis na interface:
+
+```text
+ls [caminho]       cd <caminho>       pwd
+touch <caminho>    mkdir <caminho>    help    exit
+```
+
+Execute os testes automatizados com:
+
+```bash
+make test
+```
+
+Os caminhos nao aceitam espacos nesta primeira interface. Use caminhos sem
+espacos ate que o parser de argumentos seja estendido.
+
 ## Repositorio de referencia
 
 Este projeto utiliza como referencia o repositorio [c-lab](https://github.com/mnl-nox/c-lab).
@@ -81,7 +99,7 @@ Este projeto utiliza como referencia o repositorio [c-lab](https://github.com/mn
 ## Documentacao
 
 A documentacao tecnica esta em [`doc/`](doc/), incluindo objetivos,
-arquitetura, modelo, diagramas UML e stack utilizada.
+arquitetura, modelo, diagramas UML, stack e o registro de alteracoes.
 
 ## Licenca
 

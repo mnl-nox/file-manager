@@ -55,3 +55,13 @@ atualizado quando uma decisao for revisada.
   diagramas visuais mais detalhados.
 - **Consequencia:** Alteracoes de arquitetura devem atualizar os dois formatos
   quando ambos representarem o mesmo fluxo.
+
+## DEC-007: UI textual sem bibliotecas externas
+
+- **Status:** Aceita
+- **Decisao:** Implementar a primeira UI em `ui/terminal_ui.c` usando apenas
+  `stdio` e a camada de servico publica.
+- **Motivo:** Mantem a compilacao simples, evita dependencias extras e atende
+  ao uso interativo no terminal.
+- **Consequencia:** A UI oferece cabecalho, prompt, tabela e mensagens, mas
+  nao utiliza widgets avancados nem suporta argumentos com espacos.

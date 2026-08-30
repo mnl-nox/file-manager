@@ -86,6 +86,6 @@ stateDiagram-v2
 - `Resultado`: status, codigo e mensagem para a camada de interface.
 - `Sessao`: contexto do diretorio atual e configuracoes da execucao.
 
-Os tipos concretos devem ser definidos em headers de `include/` quando a
-implementacao for iniciada. O documento [Modelo](modelo.md) detalha as
-operacoes previstas sobre essas entidades.
+Os tipos concretos estao definidos em `include/file_manager.h`. Nesta primeira
+versao, `Entrada` contem nome e tipo; tamanho e permissoes serao incluidos ao
+implementar a consulta de metadados.

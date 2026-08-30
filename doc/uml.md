@@ -62,5 +62,6 @@ sequenceDiagram
 
 ## Observacao
 
-Os diagramas representam a arquitetura planejada. Devem ser atualizados quando
-os modulos e contratos publicos forem implementados.
+Os diagramas representam a arquitetura implementada para as operacoes basicas.
+Os casos de copiar, mover, remover e consultar informacoes permanecem como
+extensoes planejadas.

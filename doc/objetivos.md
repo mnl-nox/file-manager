@@ -19,11 +19,9 @@ previsivel e extensivel.
 
 ## Escopo inicial
 
-A primeira versao deve funcionar em modo interativo no terminal e atender as
-operacoes essenciais de navegacao e manipulacao de arquivos. A interface
-visual em `ui/` e o armazenamento em `data/` ficam preparados para extensoes,
-mas nao sao considerados implementados enquanto nao houver codigo nesses
-modulos.
+A primeira versao funciona em modo interativo no terminal e atende navegacao,
+listagem e criacao de arquivos e diretorios. A interface esta implementada em
+`ui/terminal_ui.c`; `data/` permanece reservado para extensoes futuras.
 
 ## Fora do escopo inicial
 

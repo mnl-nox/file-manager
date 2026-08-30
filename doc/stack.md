@@ -19,11 +19,12 @@ ambiente do sistema.
 Com GCC ou Clang:
 
 ```bash
-gcc -std=c11 -Wall -Wextra -pedantic -Iinclude -o file-manager src/*.c
+make
 ```
 
-O comando deve ser ajustado quando os nomes e a organizacao dos fontes forem
-definidos.
+O `Makefile` compila `src/file_manager.c`, `src/main.c` e
+`ui/terminal_ui.c` com `-std=c11 -Wall -Wextra -pedantic`. Os testes podem ser
+executados com `make test`.
 
 ## Ferramentas de desenvolvimento
 
