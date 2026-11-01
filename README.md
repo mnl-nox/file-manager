@@ -1,106 +1,88 @@
-# File Manager em C
+# File Manager
 
-![Banner do File Manager](assets/file-manager-banner.svg)
+Gerenciador de arquivos interativo para Linux, escrito em C11 e baseado em APIs POSIX.
 
----
+![File Manager](assets/file-manager-banner.svg)
 
-<div align="center">
-	<img src="https://img.shields.io/badge/C-C11%2B%2B-A8B9CC?logo=c&logoColor=white" alt="C11 ou superior">
-	<img src="https://img.shields.io/badge/API-POSIX-222222?logo=linux&logoColor=white" alt="POSIX">
-	<img src="https://img.shields.io/badge/OS-Linux-FCC624?logo=linux&logoColor=black" alt="Linux">
-	<img src="https://img.shields.io/badge/Compiler-GCC-5C2D91?logo=gnu&logoColor=white" alt="GCC">
-	<br>
-	<img src="https://img.shields.io/badge/Tools-Git-F05032?logo=git&logoColor=white" alt="Git">
-	<img src="https://img.shields.io/badge/Docs-Markdown-000000?logo=markdown&logoColor=white" alt="Markdown">
-	<img src="https://img.shields.io/badge/Diagrams-draw.io-F08705?logo=diagrams.net&logoColor=white" alt="draw.io">
-</div>
+## Estado desta entrega
 
----
-
-Gerenciador de arquivos simples, interativo e executado no terminal,
-desenvolvido em C para praticar manipulacao de diretorios e arquivos.
-
-## Objetivo
-
-Este repositorio serve como base para um gerenciador de arquivos de linha de
-comando, com foco em uma implementacao pequena, clara e facil de expandir.
-
-## Funcionalidades implementadas
-
-- Interface textual com cabecalho, prompt e mensagens de resultado
-- Listar arquivos e diretorios
-- Navegar entre diretorios
-- Criar arquivos vazios e diretorios
-- Exibir o diretorio atual e encerrar a sessao
-
-As operacoes de copiar, mover, remover e consultar metadados permanecem
-planejadas para proximas iteracoes.
+Esta branch amplia a versão inicial com operações de cópia, movimentação, remoção controlada e consulta de metadados. A interface aceita caminhos com espaços entre aspas. A implementação permanece deliberadamente pequena: sem dependências externas e sem remoção recursiva.
 
 ## Requisitos
 
-- Compilador C com suporte ao padrao C11 ou superior
-- Sistema operacional compatível com as APIs de arquivos utilizadas pelo projeto
+- Linux ou sistema POSIX compatível.
+- GCC ou Clang com suporte a C11.
+- GNU Make.
 
-## Stack e ferramentas
+## Compilar e testar
 
-### Stack principal
-
-- **C11 ou superior** para a implementacao do gerenciador.
-- **GCC ou Clang** para compilacao.
-- **libc e APIs POSIX** para arquivos, diretorios, metadados e permissoes.
-- **Linux** como ambiente alvo inicial.
-- **Git** para controle de versao.
-
-### Documentacao
-
-- **Markdown** para README e documentacao tecnica.
-- **draw.io** para criacao e manutencao de diagramas de arquitetura e UML.
-
-### Banco de dados
-
-O uso de banco de dados permanece **opcional** e ainda nao foi definido. A
-versao inicial deve operar diretamente sobre o sistema de arquivos, sem
-introduzir uma dependencia de banco antes da avaliacao dos requisitos.
-
-## Compilacao
-
-Compile o projeto com:
-
-```bash
+```sh
 make
-```
-
-Execute com:
-
-```bash
+make test
+make test-asan
 ./file-manager
 ```
 
-Comandos disponiveis na interface:
+Para limpar os binários:
+
+```sh
+make clean
+```
+
+## Comandos
+
+| Comando | Comportamento |
+|---|---|
+| `ls [caminho]` | Lista entradas, tipo, tamanho, permissões e data de modificação |
+| `cd <diretório>` | Altera o diretório da sessão |
+| `pwd` | Exibe o diretório atual |
+| `touch <arquivo>` | Cria arquivo vazio; falha se já existir |
+| `mkdir <diretório>` | Cria diretório |
+| `cp <origem> <destino>` | Copia arquivo regular para destino inexistente |
+| `mv <origem> <destino>` | Move ou renomeia sem sobrescrita intencional |
+| `rm <arquivo|link>` | Remove arquivo ou link simbólico após confirmação |
+| `rmdir <diretório>` | Remove somente diretório vazio após confirmação |
+| `stat <caminho>` | Exibe tipo, tamanho, permissões e modificação |
+| `help`, `exit` | Ajuda e encerramento |
+
+Use aspas para caminhos com espaços:
 
 ```text
-ls [caminho]       cd <caminho>       pwd
-touch <caminho>    mkdir <caminho>    help    exit
+mkdir "meus documentos"
+touch "meus documentos/notas de campo.txt"
+cp "meus documentos/notas de campo.txt" "copia de notas.txt"
 ```
 
-Execute os testes automatizados com:
+## Política de segurança e semântica
 
-```bash
-make test
-```
+- O programa opera com as permissões do usuário que o executa; não é sandbox.
+- Listagem e `stat` usam `lstat`: links simbólicos são identificados sem seguir o link final.
+- `cp` aceita somente arquivos regulares, abre origem com `O_NOFOLLOW` e cria destino exclusivamente; não sobrescreve.
+- Se uma cópia falhar, o destino parcial é removido quando possível.
+- `rm` remove arquivos e links, nunca diretórios.
+- `rmdir` só remove diretórios vazios. Não existe `rm -r`.
+- `mv` verifica se o destino existe antes de renomear. Em sistemas sem primitiva atômica de renomeação sem substituição, uma corrida concorrente ainda pode ocorrer entre a verificação e o rename; não use como ferramenta de transação contra processos hostis concorrentes.
+- Caminhos relativos são resolvidos a partir do diretório lógico da sessão. As permissões e regras do filesystem continuam sendo aplicadas pelo kernel.
 
-Os caminhos nao aceitam espacos nesta primeira interface. Use caminhos sem
-espacos ate que o parser de argumentos seja estendido.
+Consulte [doc/seguranca.md](doc/seguranca.md) antes de usar em diretórios com dados críticos.
 
-## Repositorio de referencia
+## Arquitetura
 
-Este projeto utiliza como referencia o repositorio [c-lab](https://github.com/mnl-nox/c-lab).
+- `include/file_manager.h`: contrato público do serviço.
+- `src/file_manager.c`: operações de filesystem e tradução de erros.
+- `ui/terminal_ui.c`: leitura, lexer, despacho e renderização do terminal.
+- `src/main.c`: composition root e inicialização.
+- `test/test_file_manager.c`: testes POSIX com diretório temporário.
 
-## Documentacao
+A separação atual mantém operações de filesystem fora da UI. O próximo refactor estrutural deve extrair parser/commands e casos de uso para módulos próprios, mantendo interfaces pequenas e testáveis.
 
-A documentacao tecnica esta em [`doc/`](doc/), incluindo objetivos,
-arquitetura, modelo, diagramas UML, stack e o registro de alteracoes.
+## Limitações conhecidas
 
-## Licenca
+- `cp` não copia diretórios, preserva ACLs, xattrs, ownership nem timestamps.
+- `mv` entre filesystems pode falhar com `EXDEV`; não faz fallback de cópia e remoção.
+- Não há remoção recursiva, busca, filtros, modo TUI ou operação em lote.
+- A implementação usa caminhos POSIX e não oferece isolamento contra mudanças concorrentes maliciosas nos diretórios ancestrais.
 
-Distribuido sob a [Licenca MIT](LICENSE).
+## Licença
+
+MIT. Consulte [LICENSE](LICENSE).

@@ -1,156 +1,174 @@
+#define _POSIX_C_SOURCE 200809L
 #include "terminal_ui.h"
 
+#include <ctype.h>
 #include <stdio.h>
 #include <string.h>
+#include <time.h>
 
-#define INPUT_SIZE 1024
+#define INPUT_SIZE 4096
 #define MAX_ARGUMENTS 4
 
-static void print_separator(void) {
-    puts("------------------------------------------------------------");
-}
+static void separator(void) { puts("--------------------------------------------------------------------------"); }
 
-static void print_header(void) {
-    print_separator();
-    puts("                    GERENCIADOR DE ARQUIVOS");
-    puts("                     Navegador de terminal");
-    print_separator();
-}
-
-static void print_help(void) {
+static void help(void) {
     puts("Comandos:");
-    puts("  ls [caminho]       Lista o diretorio atual ou um caminho");
-    puts("  cd <caminho>       Entra em um diretorio");
-    puts("  pwd                Mostra o diretorio atual");
-    puts("  touch <caminho>    Cria um arquivo vazio");
-    puts("  mkdir <caminho>    Cria um diretorio");
-    puts("  help               Mostra esta ajuda");
-    puts("  exit               Encerra a aplicacao");
+    puts("  ls [caminho]             Lista entradas e metadados");
+    puts("  cd <diretorio>           Altera o diretorio atual");
+    puts("  pwd                      Mostra o diretorio atual");
+    puts("  touch <arquivo>          Cria arquivo vazio (nao sobrescreve)");
+    puts("  mkdir <diretorio>        Cria diretorio");
+    puts("  cp <origem> <destino>    Copia arquivo regular (destino novo)");
+    puts("  mv <origem> <destino>    Move ou renomeia sem sobrescrever");
+    puts("  rm <arquivo|link>        Remove arquivo ou link simbolico");
+    puts("  rmdir <diretorio>        Remove somente diretorio vazio");
+    puts("  stat <caminho>           Exibe metadados");
+    puts("  help                     Exibe esta ajuda");
+    puts("  exit                     Encerra");
+    puts("");
+    puts("Aspas simples/duplas e escape com barra invertida sao aceitos.");
+    puts("Links simbolicos sao listados como links; cp nao os segue.");
 }
 
-static void print_result(FileManagerResult result) {
-    if (result.success) {
-        printf("\n[OK] %s\n", result.message);
-    } else {
-        fprintf(stderr, "\n[ERROR] %s\n", result.message);
-    }
-
-    if (result.path[0] != '\0') {
-        printf("Caminho: %s\n", result.path);
-    }
+static void print_result(FileManagerResult r) {
+    if (r.success) printf("[OK] %s\n", r.message);
+    else fprintf(stderr, "[ERRO] %s (errno=%d)\n", r.message, r.error_code);
+    if (r.path[0]) printf("  Caminho: %s\n", r.path);
 }
 
-static void print_list(const FileManagerList *list) {
-    size_t index = 0;
-
-    printf("\n%-12s %s\n", "TIPO", "NOME");
-    print_separator();
-
-    if (list->count == 0) {
-        puts("(diretorio vazio)");
-        return;
-    }
-
-    for (index = 0; index < list->count; index++) {
-        printf("%-12s %s\n", fm_entry_type_label(list->entries[index].type), list->entries[index].name);
-    }
+static void print_entry(const FileManagerEntry *e) {
+    char date[32] = "-";
+    struct tm tm_value;
+    if (localtime_r(&e->modified_at, &tm_value))
+        (void)strftime(date, sizeof(date), "%Y-%m-%d %H:%M", &tm_value);
+    printf("%-10s %10lld %04o %-16s %s\n",
+           fm_entry_type_label(e->type), (long long)e->size,
+           (unsigned)(e->mode & 07777), date, e->name);
 }
 
-static void handle_list(const FileManagerSession *session, const char *path) {
+static void list_directory(const FileManagerSession *s, const char *path) {
     FileManagerList list;
-    FileManagerResult result = fm_list_directory(session, path, &list);
-
-    if (!result.success) {
-        print_result(result);
-        return;
-    }
-
-    print_list(&list);
+    FileManagerResult r = fm_list_directory(s, path, &list);
+    size_t i;
+    if (!r.success) { print_result(r); return; }
+    printf("%-10s %10s %4s %-16s %s\n", "TIPO", "BYTES", "MODO", "MODIFICADO", "NOME");
+    separator();
+    if (!list.count) puts("(diretorio vazio)");
+    for (i = 0; i < list.count; ++i) print_entry(&list.entries[i]);
+    printf("%zu entrada(s)\n", list.count);
     fm_list_free(&list);
 }
 
-static int split_input(char *input, char *tokens[MAX_ARGUMENTS]) {
-    char *token = strtok(input, " \t");
-    int count = 0;
-
-    while (token != NULL && count < MAX_ARGUMENTS) {
-        tokens[count++] = token;
-        token = strtok(NULL, " \t");
+static int lex(char *line, char *argv[MAX_ARGUMENTS]) {
+    char *readp = line, *writep = line;
+    int argc = 0;
+    while (*readp) {
+        char quote = '\0';
+        while (isspace((unsigned char)*readp)) ++readp;
+        if (!*readp) break;
+        if (argc == MAX_ARGUMENTS) return -2;
+        argv[argc++] = writep;
+        while (*readp) {
+            char c = *readp++;
+            if (c == '\\' && quote != '\'') {
+                if (!*readp) return -1;
+                *writep++ = *readp++;
+            } else if (quote) {
+                if (c == quote) quote = '\0';
+                else *writep++ = c;
+            } else if (c == '\'' || c == '"') {
+                quote = c;
+            } else if (isspace((unsigned char)c)) {
+                break;
+            } else {
+                *writep++ = c;
+            }
+        }
+        if (quote) return -1;
+        *writep++ = '\0';
     }
+    return argc;
+}
 
-    return count;
+static int confirm_action(const char *verb, const char *path) {
+    char answer[16];
+    printf("%s '%s'? [y/N] ", verb, path);
+    if (!fgets(answer, sizeof(answer), stdin)) return 0;
+    return answer[0] == 'y' || answer[0] == 'Y';
 }
 
 int fm_terminal_ui_run(FileManagerSession *session) {
-    char input[INPUT_SIZE];
+    char line[INPUT_SIZE];
+    if (!session) return 1;
+    separator();
+    puts("FILE MANAGER | POSIX / C11");
+    separator();
+    help();
+    list_directory(session, NULL);
 
-    if (session == NULL) {
-        return 1;
-    }
-
-    print_header();
-    print_help();
-    handle_list(session, NULL);
-
-    while (1) {
-        char *tokens[MAX_ARGUMENTS] = {0};
-        int token_count = 0;
-
-        printf("\nfm [%s]\n> ", session->current_directory);
-        if (fgets(input, sizeof(input), stdin) == NULL) {
-            putchar('\n');
+    for (;;) {
+        char *argv[MAX_ARGUMENTS] = {0};
+        int argc, ch;
+        printf("\nfm:%s$ ", session->current_directory);
+        fflush(stdout);
+        if (!fgets(line, sizeof(line), stdin)) { putchar('\n'); break; }
+        if (!strchr(line, '\n') && !feof(stdin)) {
+            while ((ch = getchar()) != '\n' && ch != EOF) { }
+            fputs("[ERRO] comando excede o limite de entrada\n", stderr);
+            continue;
+        }
+        argc = lex(line, argv);
+        if (argc == 0) continue;
+        if (argc < 0) {
+            fputs(argc == -1 ? "[ERRO] aspas ou escape incompleto\n" : "[ERRO] argumentos demais\n", stderr);
+            continue;
+        }
+        if (!strcmp(argv[0], "exit")) {
+            if (argc != 1) { puts("Uso: exit"); continue; }
             break;
-        }
-
-        input[strcspn(input, "\n")] = '\0';
-        token_count = split_input(input, tokens);
-        if (token_count == 0) {
-            continue;
-        }
-
-        if (strcmp(tokens[0], "exit") == 0) {
-            break;
-        }
-        if (strcmp(tokens[0], "help") == 0) {
-            print_help();
-            continue;
-        }
-        if (strcmp(tokens[0], "pwd") == 0) {
-            printf("%s\n", session->current_directory);
-            continue;
-        }
-        if (strcmp(tokens[0], "ls") == 0) {
-            handle_list(session, token_count >= 2 ? tokens[1] : NULL);
-            continue;
-        }
-        if (strcmp(tokens[0], "cd") == 0) {
-            if (token_count < 2) {
-                fputs("[ERROR] caminho ausente\n", stderr);
-                continue;
+        } else if (!strcmp(argv[0], "help")) {
+            help();
+        } else if (!strcmp(argv[0], "pwd")) {
+            if (argc != 1) puts("Uso: pwd");
+            else puts(session->current_directory);
+        } else if (!strcmp(argv[0], "ls")) {
+            if (argc > 2) puts("Uso: ls [caminho]");
+            else list_directory(session, argc == 2 ? argv[1] : NULL);
+        } else if (!strcmp(argv[0], "cd")) {
+            if (argc != 2) puts("Uso: cd <diretorio>");
+            else print_result(fm_change_directory(session, argv[1]));
+        } else if (!strcmp(argv[0], "touch")) {
+            if (argc != 2) puts("Uso: touch <arquivo>");
+            else print_result(fm_create_file(session, argv[1]));
+        } else if (!strcmp(argv[0], "mkdir")) {
+            if (argc != 2) puts("Uso: mkdir <diretorio>");
+            else print_result(fm_create_directory(session, argv[1]));
+        } else if (!strcmp(argv[0], "cp")) {
+            if (argc != 3) puts("Uso: cp <origem> <destino>");
+            else print_result(fm_copy_file(session, argv[1], argv[2]));
+        } else if (!strcmp(argv[0], "mv")) {
+            if (argc != 3) puts("Uso: mv <origem> <destino>");
+            else print_result(fm_move_entry(session, argv[1], argv[2]));
+        } else if (!strcmp(argv[0], "rm")) {
+            if (argc != 2) puts("Uso: rm <arquivo|link>");
+            else if (confirm_action("Remover", argv[1])) print_result(fm_remove_file(session, argv[1]));
+            else puts("Operacao cancelada.");
+        } else if (!strcmp(argv[0], "rmdir")) {
+            if (argc != 2) puts("Uso: rmdir <diretorio vazio>");
+            else if (confirm_action("Remover diretorio vazio", argv[1])) print_result(fm_remove_directory(session, argv[1]));
+            else puts("Operacao cancelada.");
+        } else if (!strcmp(argv[0], "stat")) {
+            FileManagerEntry info;
+            if (argc != 2) puts("Uso: stat <caminho>");
+            else {
+                FileManagerResult r = fm_get_info(session, argv[1], &info);
+                if (r.success) print_entry(&info);
+                else print_result(r);
             }
-            print_result(fm_change_directory(session, tokens[1]));
-            continue;
+        } else {
+            fprintf(stderr, "[ERRO] comando desconhecido: %s\n", argv[0]);
         }
-        if (strcmp(tokens[0], "touch") == 0) {
-            if (token_count < 2) {
-                fputs("[ERROR] caminho ausente\n", stderr);
-                continue;
-            }
-            print_result(fm_create_file(session, tokens[1]));
-            continue;
-        }
-        if (strcmp(tokens[0], "mkdir") == 0) {
-            if (token_count < 2) {
-                fputs("[ERROR] caminho ausente\n", stderr);
-                continue;
-            }
-            print_result(fm_create_directory(session, tokens[1]));
-            continue;
-        }
-
-        fprintf(stderr, "[ERROR] comando desconhecido: %s\n", tokens[0]);
     }
-
     puts("Sessao encerrada.");
     return 0;
 }
