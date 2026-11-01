@@ -1,7 +1,7 @@
 #ifndef FILE_MANAGER_APPLICATION_H
 #define FILE_MANAGER_APPLICATION_H
 
-#include "file_manager.h"
+#include "filesystem_port.h"
 
 typedef enum FileManagerAppResultKind {
     FM_APP_USAGE = 0,
@@ -31,6 +31,7 @@ typedef struct FileManagerAppResult {
  */
 FileManagerAppResult fm_application_execute(
     FileManagerSession *session,
+    const FileSystemPort *filesystem,
     int argc,
     char *const argv[],
     int confirmed

@@ -46,6 +46,50 @@ static FileManagerResult resolve_path(const FileManagerSession *s, const char *p
     return result_make(1, 0, out, "ok");
 }
 
+
+/*
+ * Resolve a leaf relative to an opened parent directory. The parent is pinned
+ * by dirfd before the final operation, so replacing the parent pathname after
+ * this point cannot redirect the leaf operation.
+ */
+static FileManagerResult resolve_parent(
+    const FileManagerSession *s,
+    const char *p,
+    int *parent_fd,
+    char name[FM_NAME_SIZE],
+    char resolved[FM_PATH_SIZE]
+) {
+    char *slash;
+    size_t name_len, parent_len;
+    int fd;
+    FileManagerResult r;
+    if (!parent_fd || !name || !resolved)
+        return result_make(0, EINVAL, p, "saida de resolucao invalida");
+    *parent_fd = -1;
+    r = resolve_path(s, p, resolved);
+    if (!r.success) return r;
+    {
+        size_t len = strlen(resolved);
+        while (len > 1 && resolved[len - 1] == '/') resolved[--len] = '\0';
+    }
+    slash = strrchr(resolved, '/');
+    if (!slash || slash[1] == '\0')
+        return result_make(0, EINVAL, resolved, "o caminho precisa identificar uma entrada");
+    name_len = strlen(slash + 1);
+    if (name_len >= FM_NAME_SIZE)
+        return result_make(0, ENAMETOOLONG, resolved, "nome excede o limite suportado");
+    if (!strcmp(slash + 1, ".") || !strcmp(slash + 1, ".."))
+        return result_make(0, EINVAL, resolved, "operacao sobre . ou .. nao permitida");
+    (void)snprintf(name, FM_NAME_SIZE, "%s", slash + 1);
+    parent_len = (size_t)(slash - resolved);
+    if (parent_len == 0) parent_len = 1;
+    resolved[parent_len] = '\0';
+    fd = open(resolved, O_RDONLY | O_DIRECTORY | O_CLOEXEC);
+    if (fd < 0) return result_make(0, errno, resolved, "abertura do diretorio pai: %s", strerror(errno));
+    *parent_fd = fd;
+    return result_make(1, 0, resolved, "diretorio pai aberto");
+}
+
 static FileManagerEntryType type_from_mode(mode_t mode) {
     if (S_ISREG(mode)) return FM_ENTRY_FILE;
     if (S_ISDIR(mode)) return FM_ENTRY_DIRECTORY;
@@ -88,7 +132,7 @@ FileManagerResult fm_change_directory(FileManagerSession *s, const char *p) {
 }
 
 FileManagerResult fm_list_directory(const FileManagerSession *s, const char *p, FileManagerList *list) {
-    char path[FM_PATH_SIZE], child[FM_PATH_SIZE];
+    char path[FM_PATH_SIZE];
     const char *target;
     DIR *dir;
     struct dirent *de;
@@ -108,12 +152,12 @@ FileManagerResult fm_list_directory(const FileManagerSession *s, const char *p, 
     errno = 0;
     while ((de = readdir(dir)) != NULL) {
         struct stat st;
-        int n;
         FileManagerEntry *tmp;
         if (!strcmp(de->d_name, ".") || !strcmp(de->d_name, "..")) { errno = 0; continue; }
-        n = snprintf(child, sizeof(child), "%s/%s", target, de->d_name);
-        if (n < 0 || (size_t)n >= sizeof(child)) { read_error = ENAMETOOLONG; break; }
-        if (lstat(child, &st) != 0) { errno = 0; continue; } /* entry disappeared or became inaccessible */
+        if (fstatat(dirfd(dir), de->d_name, &st, AT_SYMLINK_NOFOLLOW) != 0) {
+            errno = 0;
+            continue;
+        }
         if (list->count == cap) {
             size_t next = cap ? cap * 2 : 16;
             if (next < cap || next > ((size_t)-1) / sizeof(*list->entries)) { read_error = ENOMEM; break; }
@@ -136,40 +180,52 @@ FileManagerResult fm_list_directory(const FileManagerSession *s, const char *p, 
 }
 
 FileManagerResult fm_create_file(const FileManagerSession *s, const char *p) {
-    char path[FM_PATH_SIZE];
-    FileManagerResult r = resolve_path(s, p, path);
-    int fd;
+    char path[FM_PATH_SIZE], name[FM_NAME_SIZE];
+    int parent = -1, fd;
+    FileManagerResult r = resolve_parent(s, p, &parent, name, path);
     if (!r.success) return r;
-    fd = open(path, O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW, 0644);
-    if (fd < 0) return result_make(0, errno, path, "criacao do arquivo: %s", strerror(errno));
-    if (close(fd) != 0) return result_make(0, errno, path, "fechamento do arquivo: %s", strerror(errno));
-    return result_make(1, 0, path, "arquivo criado");
+    fd = openat(parent, name, O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW | O_CLOEXEC, 0644);
+    if (fd < 0) { int e = errno; close(parent); return result_make(0, e, p, "criacao do arquivo: %s", strerror(e)); }
+    if (close(fd) != 0) { int e = errno; close(parent); return result_make(0, e, p, "fechamento do arquivo: %s", strerror(e)); }
+    if (close(parent) != 0) return result_make(0, errno, p, "fechamento do diretorio pai: %s", strerror(errno));
+    return result_make(1, 0, p, "arquivo criado");
 }
 
 FileManagerResult fm_create_directory(const FileManagerSession *s, const char *p) {
-    char path[FM_PATH_SIZE];
-    FileManagerResult r = resolve_path(s, p, path);
+    char path[FM_PATH_SIZE], name[FM_NAME_SIZE];
+    int parent = -1;
+    FileManagerResult r = resolve_parent(s, p, &parent, name, path);
     if (!r.success) return r;
-    if (mkdir(path, 0755) != 0) return result_make(0, errno, path, "criacao do diretorio: %s", strerror(errno));
-    return result_make(1, 0, path, "diretorio criado");
+    if (mkdirat(parent, name, 0755) != 0) { int e = errno; close(parent); return result_make(0, e, p, "criacao do diretorio: %s", strerror(e)); }
+    if (close(parent) != 0) return result_make(0, errno, p, "fechamento do diretorio pai: %s", strerror(errno));
+    return result_make(1, 0, p, "diretorio criado");
 }
 
 FileManagerResult fm_copy_file(const FileManagerSession *s, const char *src, const char *dst) {
-    char a[FM_PATH_SIZE], b[FM_PATH_SIZE];
+    char src_path[FM_PATH_SIZE], dst_path[FM_PATH_SIZE];
+    char src_name[FM_NAME_SIZE], dst_name[FM_NAME_SIZE], buffer[65536];
     struct stat st;
-    char buffer[65536];
-    int in = -1, out = -1, saved = 0;
+    int src_parent = -1, dst_parent = -1, in = -1, out = -1, saved = 0;
     ssize_t nr;
-    FileManagerResult r = resolve_path(s, src, a);
+    FileManagerResult r = resolve_parent(s, src, &src_parent, src_name, src_path);
     if (!r.success) return r;
-    r = resolve_path(s, dst, b);
-    if (!r.success) return r;
-    if (lstat(a, &st) != 0) return result_make(0, errno, a, "origem: %s", strerror(errno));
-    if (!S_ISREG(st.st_mode)) return result_make(0, EINVAL, a, "cp aceita somente arquivos regulares; links simbolicos nao sao seguidos");
-    in = open(a, O_RDONLY | O_NOFOLLOW);
-    if (in < 0) return result_make(0, errno, a, "abertura da origem: %s", strerror(errno));
-    out = open(b, O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW, st.st_mode & 0777);
-    if (out < 0) { saved = errno; close(in); return result_make(0, saved, b, "destino nao criado: %s", strerror(saved)); }
+    r = resolve_parent(s, dst, &dst_parent, dst_name, dst_path);
+    if (!r.success) { close(src_parent); return r; }
+    in = openat(src_parent, src_name, O_RDONLY | O_NOFOLLOW | O_CLOEXEC | O_NONBLOCK);
+    if (in < 0) { saved = errno; close(src_parent); close(dst_parent); return result_make(0, saved, src, "abertura da origem: %s", strerror(saved)); }
+    if (fstat(in, &st) != 0) {
+        saved = errno; close(in); close(src_parent); close(dst_parent);
+        return result_make(0, saved, src, "metadados da origem: %s", strerror(saved));
+    }
+    if (!S_ISREG(st.st_mode)) {
+        close(in); close(src_parent); close(dst_parent);
+        return result_make(0, EINVAL, src, "cp aceita somente arquivos regulares; links simbolicos nao sao seguidos");
+    }
+    out = openat(dst_parent, dst_name, O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW | O_CLOEXEC, st.st_mode & 0777);
+    if (out < 0) {
+        saved = errno; close(in); close(src_parent); close(dst_parent);
+        return result_make(0, saved, dst, "destino nao criado: %s", strerror(saved));
+    }
     while ((nr = read(in, buffer, sizeof(buffer))) != 0) {
         ssize_t off = 0;
         if (nr < 0) { if (errno == EINTR) continue; saved = errno; break; }
@@ -183,65 +239,108 @@ FileManagerResult fm_copy_file(const FileManagerSession *s, const char *src, con
     }
     if (close(in) != 0 && !saved) saved = errno;
     if (close(out) != 0 && !saved) saved = errno;
+    close(src_parent);
     if (saved) {
-        (void)unlink(b);
-        return result_make(0, saved, b, "copia incompleta, destino removido: %s", strerror(saved));
+        (void)unlinkat(dst_parent, dst_name, 0);
+        close(dst_parent);
+        return result_make(0, saved, dst, "copia incompleta, destino parcial removido: %s", strerror(saved));
     }
-    return result_make(1, 0, b, "arquivo copiado");
+    if (close(dst_parent) != 0) return result_make(0, errno, dst, "fechamento do diretorio destino: %s", strerror(errno));
+    return result_make(1, 0, dst, "arquivo copiado");
 }
 
 FileManagerResult fm_move_entry(const FileManagerSession *s, const char *src, const char *dst) {
-    char a[FM_PATH_SIZE], b[FM_PATH_SIZE];
+    char src_path[FM_PATH_SIZE], dst_path[FM_PATH_SIZE];
+    char src_name[FM_NAME_SIZE], dst_name[FM_NAME_SIZE];
     struct stat st;
-    FileManagerResult r = resolve_path(s, src, a);
+    int src_parent = -1, dst_parent = -1, saved;
+    FileManagerResult r = resolve_parent(s, src, &src_parent, src_name, src_path);
     if (!r.success) return r;
-    r = resolve_path(s, dst, b);
-    if (!r.success) return r;
-    if (lstat(a, &st) != 0) return result_make(0, errno, a, "origem: %s", strerror(errno));
+    r = resolve_parent(s, dst, &dst_parent, dst_name, dst_path);
+    if (!r.success) { close(src_parent); return r; }
+    if (fstatat(src_parent, src_name, &st, AT_SYMLINK_NOFOLLOW) != 0) {
+        saved = errno; close(src_parent); close(dst_parent);
+        return result_make(0, saved, src, "origem: %s", strerror(saved));
+    }
 #if defined(__linux__) && defined(SYS_renameat2)
-    if (syscall(SYS_renameat2, AT_FDCWD, a, AT_FDCWD, b, RENAME_NOREPLACE) == 0)
-        return result_make(1, 0, b, "item movido/renomeado");
-    if (errno != ENOSYS && errno != EINVAL && errno != EOPNOTSUPP)
-        return result_make(0, errno, b, "movimentacao sem sobrescrita: %s", strerror(errno));
+    if (syscall(SYS_renameat2, src_parent, src_name, dst_parent, dst_name, RENAME_NOREPLACE) == 0) {
+        close(src_parent); close(dst_parent);
+        return result_make(1, 0, dst, "item movido/renomeado");
+    }
+    if (errno != ENOSYS && errno != EINVAL && errno != EOPNOTSUPP) {
+        saved = errno; close(src_parent); close(dst_parent);
+        return result_make(0, saved, dst, "movimentacao sem sobrescrita: %s", strerror(saved));
+    }
 #endif
-    /* Portable fallback: check-then-rename is not atomic against concurrent writers. */
-    if (lstat(b, &st) == 0)
-        return result_make(0, EEXIST, b, "destino ja existe; nenhuma sobrescrita foi feita");
-    if (errno != ENOENT)
-        return result_make(0, errno, b, "verificacao do destino: %s", strerror(errno));
-    if (rename(a, b) != 0) return result_make(0, errno, a, "movimentacao: %s", strerror(errno));
-    return result_make(1, 0, b, "item movido/renomeado");
+    if (fstatat(dst_parent, dst_name, &st, AT_SYMLINK_NOFOLLOW) == 0) {
+        close(src_parent); close(dst_parent);
+        return result_make(0, EEXIST, dst, "destino ja existe; nenhuma sobrescrita foi feita");
+    }
+    if (errno != ENOENT) {
+        saved = errno; close(src_parent); close(dst_parent);
+        return result_make(0, saved, dst, "verificacao do destino: %s", strerror(saved));
+    }
+    if (renameat(src_parent, src_name, dst_parent, dst_name) != 0) {
+        saved = errno; close(src_parent); close(dst_parent);
+        return result_make(0, saved, src, "movimentacao: %s", strerror(saved));
+    }
+    close(src_parent); close(dst_parent);
+    return result_make(1, 0, dst, "item movido/renomeado");
 }
 
 FileManagerResult fm_remove_file(const FileManagerSession *s, const char *p) {
-    char path[FM_PATH_SIZE];
+    char path[FM_PATH_SIZE], name[FM_NAME_SIZE];
     struct stat st;
-    FileManagerResult r = resolve_path(s, p, path);
+    int parent = -1, saved;
+    FileManagerResult r = resolve_parent(s, p, &parent, name, path);
     if (!r.success) return r;
-    if (lstat(path, &st) != 0) return result_make(0, errno, path, "item: %s", strerror(errno));
-    if (S_ISDIR(st.st_mode)) return result_make(0, EISDIR, path, "rm nao remove diretorios; use rmdir para diretorios vazios");
-    if (unlink(path) != 0) return result_make(0, errno, path, "remocao: %s", strerror(errno));
-    return result_make(1, 0, path, "arquivo ou link removido");
+    if (fstatat(parent, name, &st, AT_SYMLINK_NOFOLLOW) != 0) {
+        saved = errno; close(parent); return result_make(0, saved, p, "item: %s", strerror(saved));
+    }
+    if (S_ISDIR(st.st_mode)) { close(parent); return result_make(0, EISDIR, p, "rm nao remove diretorios; use rmdir para diretorios vazios"); }
+    if (unlinkat(parent, name, 0) != 0) {
+        saved = errno; close(parent); return result_make(0, saved, p, "remocao: %s", strerror(saved));
+    }
+    close(parent);
+    return result_make(1, 0, p, "arquivo ou link removido");
 }
 
 FileManagerResult fm_remove_directory(const FileManagerSession *s, const char *p) {
-    char path[FM_PATH_SIZE];
-    FileManagerResult r = resolve_path(s, p, path);
+    char path[FM_PATH_SIZE], name[FM_NAME_SIZE];
+    int parent = -1, saved;
+    FileManagerResult r = resolve_parent(s, p, &parent, name, path);
     if (!r.success) return r;
-    if (rmdir(path) != 0) return result_make(0, errno, path, "rmdir (somente diretorios vazios): %s", strerror(errno));
-    return result_make(1, 0, path, "diretorio vazio removido");
+    if (unlinkat(parent, name, AT_REMOVEDIR) != 0) {
+        saved = errno; close(parent); return result_make(0, saved, p, "rmdir (somente diretorios vazios): %s", strerror(saved));
+    }
+    close(parent);
+    return result_make(1, 0, p, "diretorio vazio removido");
 }
 
 FileManagerResult fm_get_info(const FileManagerSession *s, const char *p, FileManagerEntry *info) {
-    char path[FM_PATH_SIZE];
+    char path[FM_PATH_SIZE], name[FM_NAME_SIZE];
     struct stat st;
+    int parent = -1, saved;
     FileManagerResult r;
     if (!info) return result_make(0, EINVAL, p, "saida de metadados obrigatoria");
     r = resolve_path(s, p, path);
     if (!r.success) return r;
-    if (lstat(path, &st) != 0) return result_make(0, errno, path, "metadados: %s", strerror(errno));
-    { const char *base = strrchr(path, '/'); entry_from_stat(info, base ? base + 1 : path, &st); }
-    return result_make(1, 0, path, "metadados obtidos");
+    if (!strcmp(path, "/")) {
+        parent = open("/", O_RDONLY | O_DIRECTORY | O_CLOEXEC);
+        if (parent < 0) return result_make(0, errno, p, "abertura da raiz: %s", strerror(errno));
+        if (fstat(parent, &st) != 0) { saved = errno; close(parent); return result_make(0, saved, p, "metadados: %s", strerror(saved)); }
+        entry_from_stat(info, "/", &st);
+        close(parent);
+        return result_make(1, 0, p, "metadados obtidos");
+    }
+    r = resolve_parent(s, p, &parent, name, path);
+    if (!r.success) return r;
+    if (fstatat(parent, name, &st, AT_SYMLINK_NOFOLLOW) != 0) {
+        saved = errno; close(parent); return result_make(0, saved, p, "metadados: %s", strerror(saved));
+    }
+    entry_from_stat(info, name, &st);
+    close(parent);
+    return result_make(1, 0, p, "metadados obtidos");
 }
 
 void fm_list_free(FileManagerList *list) {
