@@ -14,6 +14,8 @@ Depois de abrir o diretório pai, as operações finais usam openat, mkdirat, fs
 
 O descritor mantém estável o diretório pai depois de aberto: substituir posteriormente seu nome no namespace não redireciona a operação final. Isso reduz TOCTOU na entrada final. Não existe raiz lógica confinada, RESOLVE_BENEATH ou RESOLVE_IN_ROOT; caminhos absolutos continuam permitidos e não há sandbox. O programa não promete isolamento contra um adversário que tenha controle sobre a semântica dos caminhos e permissões do usuário.
 
+A suíte de regressão verifica que symlinks comuns de diretório continuam funcionais e que magic links via /proc/self/fd são rejeitados quando openat2 está disponível.
+
 ## Links simbólicos
 
 - Listagem e stat não seguem o link final.
