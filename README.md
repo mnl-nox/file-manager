@@ -85,7 +85,7 @@ A aplicação recebe o FileSystemPort por injeção; os testes substituem opera�
 - `cp` não copia diretórios, preserva ACLs, xattrs, ownership nem timestamps.
 - `mv` entre filesystems pode falhar com `EXDEV`; não faz fallback de cópia e remoção.
 - Não há remoção recursiva, busca, filtros, modo TUI ou operação em lote.
-- As operações finais usam dirfd (openat, fstatat, unlinkat, renameat2), mas a resolução do diretório pai ainda percorre componentes por pathname. Não é sandbox nem proteção completa contra adversário local que controla diretórios ancestrais.
+- No Linux, o diretório pai é resolvido por openat2 com RESOLVE_NO_MAGICLINKS quando disponível; operações finais usam dirfd. O fallback open mantém semântica POSIX sem a proteção contra magic links. Não é sandbox.
 
 ## Licença
 

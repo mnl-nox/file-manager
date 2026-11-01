@@ -15,20 +15,20 @@ file_manager_application -> FileSystemPort
 
 - ui/terminal_ui.c: entrada, confirmação e renderização.
 - src/command_parser.c: lexer sem dependência da interface.
-- src/file_manager_application.c: validação e orquestração; não chama syscalls nem imprime.
-- include/filesystem_port.h: contrato de filesystem consumido pela aplicação.
-- adapters/posix/filesystem_posix.c: implementação concreta do contrato POSIX.
-- src/file_manager.c: serviço de filesystem e tradução de erros POSIX.
+- src/file_manager_application.c: validação e orquestração.
+- include/filesystem_port.h: contrato injetável consumido pela aplicação.
+- adapters/posix/filesystem_posix.c: adapter POSIX.
+- src/file_manager.c: operações e resolução de caminhos.
 - src/main.c: composition root.
 
-A aplicação recebe um FileSystemPort por injeção. Os testes substituem a operação de navegação por um fake, comprovando que o caso de uso não precisa conhecer a implementação POSIX. O adapter atual delega para o serviço POSIX existente.
+A aplicação recebe FileSystemPort por injeção. Testes podem substituir operações por um fake. No Linux, o adapter abre diretórios pais com openat2 e RESOLVE_NO_MAGICLINKS quando disponível, então executa operações finais com dirfd. O fallback usa open quando openat2 não existe.
 
 ## Ownership
 
-- O serviço aloca FileManagerList.entries; o consumidor deve chamar fm_list_free.
-- A aplicação devolve listas ao chamador e não as imprime.
-- O adapter não retém ponteiros de sessão, argumentos ou resultados após retornar.
+- O serviço aloca FileManagerList.entries; o consumidor chama fm_list_free.
+- A aplicação devolve listas e não as imprime.
+- O adapter não retém ponteiros após retornar.
 
 ## Limites
 
-O contrato está separado, mas o serviço POSIX ainda é um módulo concentrado. A extração futura deve dividir resolução de caminhos, operações de diretório e cópia em módulos menores.
+O serviço POSIX continua concentrado em um módulo. A próxima etapa deve separar path resolution, directory operations e copy engine, além de ampliar testes de concorrência e falhas de I/O.
