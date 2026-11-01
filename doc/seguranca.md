@@ -28,7 +28,7 @@ Não há remoção recursiva. Para remover árvores, use uma ferramenta especial
 
 ## Concorrência e TOCTOU
 
-Algumas operações são compostas por verificações e syscalls subsequentes usando caminhos absolutos. Em um ambiente no qual outro processo malicioso possa renomear ou substituir diretórios ancestrais simultaneamente, existe risco de corrida TOCTOU. A verificação de destino em `mv` também não é atômica em todos os sistemas POSIX.
+Algumas operações são compostas por verificações e syscalls subsequentes usando caminhos absolutos. Em um ambiente no qual outro processo malicioso possa renomear ou substituir diretórios ancestrais simultaneamente, existe risco de corrida TOCTOU. No Linux, `mv` usa `renameat2(RENAME_NOREPLACE)` quando o kernel oferece suporte; o fallback POSIX usa verificação seguida de `rename` e não é atômico contra escritores concorrentes.
 
 Uma versão endurecida para esse modelo deve operar com descritores de diretório (`openat`, `fstatat`, `unlinkat`, `renameat2(RENAME_NOREPLACE)` quando disponível), manter o dirfd da raiz lógica e definir explicitamente o comportamento em `EXDEV`. Esta entrega não deve ser apresentada como sandbox ou como ferramenta resistente a adversário local concorrente.
 

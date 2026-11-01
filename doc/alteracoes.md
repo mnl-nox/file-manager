@@ -18,3 +18,7 @@
 - `mv` não garante no-replace atômico em todos os POSIX.
 - `cp` não copia diretórios nem metadados estendidos.
 - CI e refactor em camadas adicionais são etapas subsequentes.
+
+- Extraído o lexer para `src/command_parser.c`, com contrato próprio e testes unitários independentes.
+- Em Linux, `mv` utiliza `renameat2(RENAME_NOREPLACE)` quando disponível.
+- CI passa a executar AddressSanitizer e UndefinedBehaviorSanitizer.

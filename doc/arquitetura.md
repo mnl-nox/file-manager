@@ -14,8 +14,11 @@ src/main.c
           v
 ui/terminal_ui.c
   |-- leitura da entrada
-  |-- lexer com aspas e escapes
   |-- validação de aridade e despacho
+          |
+          v
+src/command_parser.c
+  |-- lexer com aspas e escapes
   |-- renderização de resultados
           |
           v
@@ -39,7 +42,7 @@ src/file_manager.c
 
 ## Próxima separação estrutural
 
-O próximo passo arquitetural é mover lexer/parser e tabela de comandos para `cli/`, extrair casos de uso para `application/` e manter POSIX como adapter de filesystem. Isso deve ocorrer sem criar interfaces artificiais: primeiro separar os módulos que já possuem responsabilidades independentes, depois introduzir ports apenas onde houver necessidade de substituição em testes.
+O próximo passo arquitetural é extrair casos de uso para `application/` e manter POSIX como adapter de filesystem. Isso deve ocorrer sem criar interfaces artificiais: primeiro separar os módulos que já possuem responsabilidades independentes, depois introduzir ports apenas onde houver necessidade de substituição em testes.
 
 ## Dependências
 

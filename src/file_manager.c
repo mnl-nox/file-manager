@@ -1,3 +1,4 @@
+#define _GNU_SOURCE
 #define _POSIX_C_SOURCE 200809L
 #define _XOPEN_SOURCE 700
 
@@ -11,6 +12,12 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
+#if defined(__linux__)
+#include <sys/syscall.h>
+#ifndef RENAME_NOREPLACE
+#define RENAME_NOREPLACE (1U << 0)
+#endif
+#endif
 #include <unistd.h>
 
 static FileManagerResult result_make(int ok, int code, const char *path, const char *fmt, ...) {
@@ -191,8 +198,17 @@ FileManagerResult fm_move_entry(const FileManagerSession *s, const char *src, co
     r = resolve_path(s, dst, b);
     if (!r.success) return r;
     if (lstat(a, &st) != 0) return result_make(0, errno, a, "origem: %s", strerror(errno));
-    if (lstat(b, &st) == 0) return result_make(0, EEXIST, b, "destino ja existe; nenhuma sobrescrita foi feita");
-    if (errno != ENOENT) return result_make(0, errno, b, "verificacao do destino: %s", strerror(errno));
+#if defined(__linux__) && defined(SYS_renameat2)
+    if (syscall(SYS_renameat2, AT_FDCWD, a, AT_FDCWD, b, RENAME_NOREPLACE) == 0)
+        return result_make(1, 0, b, "item movido/renomeado");
+    if (errno != ENOSYS && errno != EINVAL && errno != EOPNOTSUPP)
+        return result_make(0, errno, b, "movimentacao sem sobrescrita: %s", strerror(errno));
+#endif
+    /* Portable fallback: check-then-rename is not atomic against concurrent writers. */
+    if (lstat(b, &st) == 0)
+        return result_make(0, EEXIST, b, "destino ja existe; nenhuma sobrescrita foi feita");
+    if (errno != ENOENT)
+        return result_make(0, errno, b, "verificacao do destino: %s", strerror(errno));
     if (rename(a, b) != 0) return result_make(0, errno, a, "movimentacao: %s", strerror(errno));
     return result_make(1, 0, b, "item movido/renomeado");
 }
@@ -224,7 +240,7 @@ FileManagerResult fm_get_info(const FileManagerSession *s, const char *p, FileMa
     r = resolve_path(s, p, path);
     if (!r.success) return r;
     if (lstat(path, &st) != 0) return result_make(0, errno, path, "metadados: %s", strerror(errno));
-    entry_from_stat(info, path, &st);
+    { const char *base = strrchr(path, '/'); entry_from_stat(info, base ? base + 1 : path, &st); }
     return result_make(1, 0, path, "metadados obtidos");
 }
 

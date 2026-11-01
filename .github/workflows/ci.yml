@@ -24,3 +24,10 @@ jobs:
         run: make CC=${{ matrix.compiler }}
       - name: Test
         run: make test CC=${{ matrix.compiler }}
+
+  sanitizers:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: AddressSanitizer and UndefinedBehaviorSanitizer
+        run: make test-asan

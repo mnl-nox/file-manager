@@ -1,7 +1,7 @@
 #define _POSIX_C_SOURCE 200809L
 #include "terminal_ui.h"
+#include "command_parser.h"
 
-#include <ctype.h>
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
@@ -59,37 +59,6 @@ static void list_directory(const FileManagerSession *s, const char *path) {
     fm_list_free(&list);
 }
 
-static int lex(char *line, char *argv[MAX_ARGUMENTS]) {
-    char *readp = line, *writep = line;
-    int argc = 0;
-    while (*readp) {
-        char quote = '\0';
-        while (isspace((unsigned char)*readp)) ++readp;
-        if (!*readp) break;
-        if (argc == MAX_ARGUMENTS) return -2;
-        argv[argc++] = writep;
-        while (*readp) {
-            char c = *readp++;
-            if (c == '\\' && quote != '\'') {
-                if (!*readp) return -1;
-                *writep++ = *readp++;
-            } else if (quote) {
-                if (c == quote) quote = '\0';
-                else *writep++ = c;
-            } else if (c == '\'' || c == '"') {
-                quote = c;
-            } else if (isspace((unsigned char)c)) {
-                break;
-            } else {
-                *writep++ = c;
-            }
-        }
-        if (quote) return -1;
-        *writep++ = '\0';
-    }
-    return argc;
-}
-
 static int confirm_action(const char *verb, const char *path) {
     char answer[16];
     printf("%s '%s'? [y/N] ", verb, path);
@@ -117,7 +86,7 @@ int fm_terminal_ui_run(FileManagerSession *session) {
             fputs("[ERRO] comando excede o limite de entrada\n", stderr);
             continue;
         }
-        argc = lex(line, argv);
+        argc = fm_parse_command(line, argv, MAX_ARGUMENTS);
         if (argc == 0) continue;
         if (argc < 0) {
             fputs(argc == -1 ? "[ERRO] aspas ou escape incompleto\n" : "[ERRO] argumentos demais\n", stderr);
