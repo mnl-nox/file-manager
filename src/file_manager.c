@@ -48,6 +48,8 @@ static FileManagerResult resolve_path(const FileManagerSession *s, const char *p
 }
 
 
+static int open_parent_directory(const char *path);
+
 /*
  * Resolve a leaf relative to an opened parent directory. The parent is pinned
  * by dirfd before the final operation, so replacing the parent pathname after
