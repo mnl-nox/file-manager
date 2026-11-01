@@ -72,10 +72,11 @@ Consulte [doc/seguranca.md](doc/seguranca.md) antes de usar em diretórios com d
 - `src/file_manager.c`: operações de filesystem e tradução de erros.
 - `ui/terminal_ui.c`: leitura, despacho e renderização do terminal.
 - `src/command_parser.c`: lexer isolado, testado independentemente.
+- `src/file_manager_application.c`: validação e despacho de casos de uso sem I/O de terminal.
 - `src/main.c`: composition root e inicialização.
 - `test/test_file_manager.c`: testes POSIX com diretório temporário.
 
-A separação atual mantém operações de filesystem fora da UI. O próximo refactor estrutural deve extrair parser/commands e casos de uso para módulos próprios, mantendo interfaces pequenas e testáveis.
+A separação atual mantém parser e casos de uso fora da UI. O próximo refactor estrutural deve introduzir um `FileSystemPort` e mover o backend POSIX para `adapters/posix/`, permitindo fake filesystem nos testes.
 
 ## Limitações conhecidas
 

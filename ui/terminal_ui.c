@@ -1,6 +1,7 @@
 #define _POSIX_C_SOURCE 200809L
 #include "terminal_ui.h"
 #include "command_parser.h"
+#include "file_manager_application.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -46,17 +47,13 @@ static void print_entry(const FileManagerEntry *e) {
            (unsigned)(e->mode & 07777), date, e->name);
 }
 
-static void list_directory(const FileManagerSession *s, const char *path) {
-    FileManagerList list;
-    FileManagerResult r = fm_list_directory(s, path, &list);
+static void print_list(const FileManagerList *list) {
     size_t i;
-    if (!r.success) { print_result(r); return; }
     printf("%-10s %10s %4s %-16s %s\n", "TIPO", "BYTES", "MODO", "MODIFICADO", "NOME");
     separator();
-    if (!list.count) puts("(diretorio vazio)");
-    for (i = 0; i < list.count; ++i) print_entry(&list.entries[i]);
-    printf("%zu entrada(s)\n", list.count);
-    fm_list_free(&list);
+    if (!list->count) puts("(diretorio vazio)");
+    for (i = 0; i < list->count; ++i) print_entry(&list->entries[i]);
+    printf("%zu entrada(s)\n", list->count);
 }
 
 static int confirm_action(const char *verb, const char *path) {
@@ -73,11 +70,17 @@ int fm_terminal_ui_run(FileManagerSession *session) {
     puts("FILE MANAGER | POSIX / C11");
     separator();
     help();
-    list_directory(session, NULL);
+    {
+        char *initial_argv[] = {"ls"};
+        FileManagerAppResult initial = fm_application_execute(session, 1, initial_argv, 0);
+        if (initial.kind == FM_APP_LIST) { print_list(&initial.list); fm_list_free(&initial.list); }
+        else if (initial.kind == FM_APP_OPERATION) print_result(initial.operation);
+    }
 
     for (;;) {
         char *argv[MAX_ARGUMENTS] = {0};
         int argc, ch;
+        FileManagerAppResult result;
         printf("\nfm:%s$ ", session->current_directory);
         fflush(stdout);
         if (!fgets(line, sizeof(line), stdin)) { putchar('\n'); break; }
@@ -86,56 +89,53 @@ int fm_terminal_ui_run(FileManagerSession *session) {
             fputs("[ERRO] comando excede o limite de entrada\n", stderr);
             continue;
         }
+        line[strcspn(line, "\n")] = '\0';
         argc = fm_parse_command(line, argv, MAX_ARGUMENTS);
         if (argc == 0) continue;
         if (argc < 0) {
             fputs(argc == -1 ? "[ERRO] aspas ou escape incompleto\n" : "[ERRO] argumentos demais\n", stderr);
             continue;
         }
-        if (!strcmp(argv[0], "exit")) {
-            if (argc != 1) { puts("Uso: exit"); continue; }
-            break;
-        } else if (!strcmp(argv[0], "help")) {
-            help();
-        } else if (!strcmp(argv[0], "pwd")) {
-            if (argc != 1) puts("Uso: pwd");
-            else puts(session->current_directory);
-        } else if (!strcmp(argv[0], "ls")) {
-            if (argc > 2) puts("Uso: ls [caminho]");
-            else list_directory(session, argc == 2 ? argv[1] : NULL);
-        } else if (!strcmp(argv[0], "cd")) {
-            if (argc != 2) puts("Uso: cd <diretorio>");
-            else print_result(fm_change_directory(session, argv[1]));
-        } else if (!strcmp(argv[0], "touch")) {
-            if (argc != 2) puts("Uso: touch <arquivo>");
-            else print_result(fm_create_file(session, argv[1]));
-        } else if (!strcmp(argv[0], "mkdir")) {
-            if (argc != 2) puts("Uso: mkdir <diretorio>");
-            else print_result(fm_create_directory(session, argv[1]));
-        } else if (!strcmp(argv[0], "cp")) {
-            if (argc != 3) puts("Uso: cp <origem> <destino>");
-            else print_result(fm_copy_file(session, argv[1], argv[2]));
-        } else if (!strcmp(argv[0], "mv")) {
-            if (argc != 3) puts("Uso: mv <origem> <destino>");
-            else print_result(fm_move_entry(session, argv[1], argv[2]));
-        } else if (!strcmp(argv[0], "rm")) {
-            if (argc != 2) puts("Uso: rm <arquivo|link>");
-            else if (confirm_action("Remover", argv[1])) print_result(fm_remove_file(session, argv[1]));
-            else puts("Operacao cancelada.");
-        } else if (!strcmp(argv[0], "rmdir")) {
-            if (argc != 2) puts("Uso: rmdir <diretorio vazio>");
-            else if (confirm_action("Remover diretorio vazio", argv[1])) print_result(fm_remove_directory(session, argv[1]));
-            else puts("Operacao cancelada.");
-        } else if (!strcmp(argv[0], "stat")) {
-            FileManagerEntry info;
-            if (argc != 2) puts("Uso: stat <caminho>");
+
+        result = fm_application_execute(session, argc, argv, 0);
+        if (result.kind == FM_APP_CONFIRM) {
+            if (confirm_action(result.message, result.value))
+                result = fm_application_execute(session, argc, argv, 1);
             else {
-                FileManagerResult r = fm_get_info(session, argv[1], &info);
-                if (r.success) print_entry(&info);
-                else print_result(r);
+                puts("Operacao cancelada.");
+                continue;
             }
-        } else {
-            fprintf(stderr, "[ERRO] comando desconhecido: %s\n", argv[0]);
+        }
+
+        switch (result.kind) {
+            case FM_APP_EXIT:
+                puts("Sessao encerrada.");
+                return 0;
+            case FM_APP_HELP:
+                help();
+                break;
+            case FM_APP_PWD:
+                puts(result.value);
+                break;
+            case FM_APP_LIST:
+                print_list(&result.list);
+                fm_list_free(&result.list);
+                break;
+            case FM_APP_INFO:
+                print_entry(&result.info);
+                break;
+            case FM_APP_OPERATION:
+                print_result(result.operation);
+                break;
+            case FM_APP_USAGE:
+                puts(result.message);
+                break;
+            case FM_APP_UNKNOWN:
+                fprintf(stderr, "[ERRO] %s\n", result.message);
+                break;
+            case FM_APP_CONFIRM:
+                /* Confirmation is resolved before reaching the renderer. */
+                break;
         }
     }
     puts("Sessao encerrada.");

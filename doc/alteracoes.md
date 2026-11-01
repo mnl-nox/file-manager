@@ -22,3 +22,7 @@
 - Extraído o lexer para `src/command_parser.c`, com contrato próprio e testes unitários independentes.
 - Em Linux, `mv` utiliza `renameat2(RENAME_NOREPLACE)` quando disponível.
 - CI passa a executar AddressSanitizer e UndefinedBehaviorSanitizer.
+
+- Extraída a camada de aplicação para `src/file_manager_application.c`, com despacho de comandos sem I/O de terminal.
+- UI passou a renderizar resultados tipados e delegar casos de uso à aplicação.
+- Adicionados testes unitários da camada de aplicação, inclusive fluxo de confirmação destrutiva.

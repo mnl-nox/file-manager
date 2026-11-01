@@ -2,47 +2,51 @@
 
 ## Objetivo
 
-Manter a interface substituível e concentrar regras de filesystem em um serviço sem dependência de UI. A arquitetura atual é pequena por decisão: evitar abstrações genéricas antes de existirem múltiplos adaptadores reais.
+Separar apresentação, interpretação de comandos, casos de uso e operações de filesystem. A implementação evita abstrações genéricas prematuras; a fronteira de filesystem ainda é POSIX e poderá ser extraída para um adapter substituível na próxima etapa.
 
 ## Componentes e fluxo
 
 ```text
 src/main.c
-  |-- inicializa FileManagerSession
+  |-- inicializa sessão
   |-- inicia terminal UI
           |
           v
 ui/terminal_ui.c
-  |-- leitura da entrada
-  |-- chamada ao parser
-  |-- validação de aridade e despacho
-  |-- renderização de resultados
+  |-- leitura e renderização
+  |-- solicita execução à aplicação
           |
           +------> src/command_parser.c
-          |           |-- lexer com aspas e escapes
+          |           |-- lexer sem dependências externas
           |
-          +------> include/file_manager.h
-                      |
-                      v
-                  src/file_manager.c
-                      |-- resolução de caminhos da sessão
-                      |-- operações POSIX
-                      |-- tradução de errno para FileManagerResult
+          +------> src/file_manager_application.c
+                      |-- valida comandos e aridade
+                      |-- coordena casos de uso
+                      |-- retorna resultados tipados
+                              |
+                              v
+                       include/file_manager.h
+                              |
+                              v
+                       src/file_manager.c
+                              |-- operações POSIX
+                              |-- regras de filesystem
+                              |-- tradução de errno
 ```
 
-## Contratos
+## Responsabilidades e contratos
 
-- A UI não chama diretamente APIs de filesystem.
-- O parser não conhece UI, sessão ou filesystem; recebe uma linha e devolve tokens.
-- O serviço não imprime nem lê stdin/stdout.
+- `ui/terminal_ui.c` contém stdin/stdout, prompts de confirmação e renderização. Não executa syscalls de filesystem.
+- `src/command_parser.c` tokeniza uma linha in-place; não conhece UI, sessão ou filesystem.
+- `src/file_manager_application.c` valida e despacha comandos sem entrada/saída de terminal. Retorna um resultado tipado e sinaliza operações que exigem confirmação.
+- `src/file_manager.c` contém o serviço POSIX e não imprime nem lê stdin/stdout.
 - `FileManagerResult` transporta sucesso, código de erro, caminho e mensagem.
 - `FileManagerList` possui memória alocada pelo serviço; o consumidor deve chamar `fm_list_free`.
-- Entradas carregam tipo, tamanho, modo e timestamp de modificação.
-- Os métodos de criação e cópia não sobrescrevem destinos existentes.
+- A UI é responsável por pedir confirmação; a aplicação só executa a operação destrutiva quando recebe `confirmed=1`.
 
 ## Próxima separação estrutural
 
-O próximo passo arquitetural é extrair casos de uso para `application/` e manter POSIX como adapter de filesystem. Isso deve ocorrer sem criar interfaces artificiais: primeiro separar os módulos que já possuem responsabilidades independentes, depois introduzir ports apenas onde houver necessidade de substituição em testes.
+O próximo refactor deve introduzir um contrato `FileSystemPort` e mover a implementação POSIX para `adapters/posix/`. A aplicação passará a depender do contrato, permitindo fake filesystem em testes sem trocar o sistema de arquivos real. Esta etapa ainda não está implementada; a camada de aplicação atual continua chamando o serviço POSIX público.
 
 ## Dependências
 

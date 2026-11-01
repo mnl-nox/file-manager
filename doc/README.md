@@ -6,7 +6,7 @@ Documentacao tecnica do File Manager em C11/POSIX.
 
 - [Objetivos](objetivos.md): finalidade e escopo.
 - [Requisitos](requisitos.md): requisitos funcionais e nao funcionais, com estado.
-- [Arquitetura](arquitetura.md): componentes, contratos e fluxo.
+- [Arquitetura](arquitetura.md): componentes, contratos e fluxo em camadas.
 - [Seguranca](seguranca.md): links simbolicos, operacoes destrutivas, TOCTOU e limites.
 - [Modelo](modelo.md): entidades e estruturas de dados.
 - [Modelagem](modelagem.md): dominio, fluxo de dados e estados.

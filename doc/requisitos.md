@@ -32,7 +32,7 @@ Estado dos requisitos nesta entrega da branch `feat/complete-file-manager`.
 | RNF-07 | Sem banco de dados | Alta | Implementado |
 | RNF-08 | Ownership e liberação de memória | Alta | Lista liberada por `fm_list_free`; validar com sanitizers |
 | RNF-09 | Documentação Markdown | Media | Implementado |
-| RNF-10 | Módulos com headers públicos | Media | Implementado; separação application/adapter permanece planejada |
+| RNF-10 | Módulos com headers públicos e responsabilidades separadas | Media | Parser e application separados; FileSystemPort/adapter POSIX permanece planejado |
 
 ## Restrições e limites
 
