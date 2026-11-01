@@ -109,6 +109,10 @@ static int test_move_and_remove(void) {
     if (!write_fixture(from, "x")) return 0;
     if (!check(fm_move_entry(&s, "move-me", "moved").success, "mv deve mover")) return 0;
     if (!check(!exists(from) && exists(to), "mv deve atualizar origem e destino")) return 0;
+    if (!write_fixture(from, "nao sobrescrever")) return 0;
+    if (!check(!fm_move_entry(&s, "move-me", "moved").success, "mv rejeita destino existente")) return 0;
+    if (!check(exists(from) && file_equals(to, "x"), "mv nao altera origem nem destino ocupado")) return 0;
+    if (!check(fm_remove_file(&s, "move-me").success, "rm remove origem de teste")) return 0;
     if (!check(fm_remove_file(&s, "moved").success, "rm remove arquivo")) return 0;
     if (!check(!exists(to), "rm remove entrada")) return 0;
     return check(!fm_remove_file(&s, "docs").success, "rm nao remove diretorio");

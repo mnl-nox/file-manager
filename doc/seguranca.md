@@ -20,7 +20,7 @@ O File Manager é uma ferramenta local executada com as credenciais do usuário.
 | touch | Falha se destino já existir |
 | mkdir | Falha se destino já existir |
 | cp | Somente arquivo regular; destino deve ser novo |
-| mv | Verifica destino antes de renomear; não substitui intencionalmente |
+| mv | Usa renomeação atômica sem substituição no Linux quando suportada; fallback POSIX tem corrida concorrente |
 | rm | Arquivo ou link; exige confirmação na UI |
 | rmdir | Diretório vazio; exige confirmação na UI |
 

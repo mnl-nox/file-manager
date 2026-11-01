@@ -70,7 +70,8 @@ Consulte [doc/seguranca.md](doc/seguranca.md) antes de usar em diretórios com d
 
 - `include/file_manager.h`: contrato público do serviço.
 - `src/file_manager.c`: operações de filesystem e tradução de erros.
-- `ui/terminal_ui.c`: leitura, lexer, despacho e renderização do terminal.
+- `ui/terminal_ui.c`: leitura, despacho e renderização do terminal.
+- `src/command_parser.c`: lexer isolado, testado independentemente.
 - `src/main.c`: composition root e inicialização.
 - `test/test_file_manager.c`: testes POSIX com diretório temporário.
 
