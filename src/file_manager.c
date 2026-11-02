@@ -89,6 +89,21 @@ static FileManagerResult resolve_parent(
     resolved[parent_len] = '\0';
     fd = open_parent_directory(resolved);
     if (fd < 0) return result_make(0, errno, resolved, "abertura do diretorio pai: %s", strerror(errno));
+    {
+        size_t input_len = strlen(p);
+        if (input_len > 0 && p[input_len - 1] == '/') {
+            struct stat leaf_stat;
+            if (fstatat(fd, name, &leaf_stat, AT_SYMLINK_NOFOLLOW) != 0) {
+                int saved = errno;
+                close(fd);
+                return result_make(0, saved, p, "metadados da entrada: %s", strerror(saved));
+            }
+            if (!S_ISDIR(leaf_stat.st_mode)) {
+                close(fd);
+                return result_make(0, ENOTDIR, p, "barra final exige um diretorio");
+            }
+        }
+    }
     *parent_fd = fd;
     return result_make(1, 0, resolved, "diretorio pai aberto");
 }
@@ -173,8 +188,12 @@ FileManagerResult fm_list_directory(const FileManagerSession *s, const char *p, 
         FileManagerEntry *tmp;
         if (!strcmp(de->d_name, ".") || !strcmp(de->d_name, "..")) { errno = 0; continue; }
         if (fstatat(dirfd(dir), de->d_name, &st, AT_SYMLINK_NOFOLLOW) != 0) {
-            errno = 0;
-            continue;
+            if (errno == ENOENT) {
+                errno = 0; /* Entry disappeared during enumeration. */
+                continue;
+            }
+            read_error = errno; /* Do not report a partial listing as complete. */
+            break;
         }
         if (list->count == cap) {
             size_t next = cap ? cap * 2 : 16;
@@ -343,6 +362,16 @@ FileManagerResult fm_get_info(const FileManagerSession *s, const char *p, FileMa
     if (!info) return result_make(0, EINVAL, p, "saida de metadados obrigatoria");
     r = resolve_path(s, p, path);
     if (!r.success) return r;
+    {
+        const char *leaf = strrchr(path, '/');
+        leaf = leaf ? leaf + 1 : path;
+        if (!strcmp(leaf, ".") || !strcmp(leaf, "..")) {
+            if (stat(path, &st) != 0)
+                return result_make(0, errno, p, "metadados: %s", strerror(errno));
+            entry_from_stat(info, leaf, &st);
+            return result_make(1, 0, p, "metadados obtidos");
+        }
+    }
     if (!strcmp(path, "/")) {
         parent = open("/", O_RDONLY | O_DIRECTORY | O_CLOEXEC);
         if (parent < 0) return result_make(0, errno, p, "abertura da raiz: %s", strerror(errno));
