@@ -25,13 +25,20 @@ static FileManagerAppResult operation(FileManagerResult result) {
 
 FileManagerAppResult fm_application_execute(
     FileManagerSession *session,
+    const FileSystemPort *filesystem,
     int argc,
     char *const argv[],
     int confirmed
 ) {
     FileManagerAppResult r;
-    if (!session || argc < 1 || !argv || !argv[0])
-        return usage("comando ou sessao invalida");
+    if (!session || !filesystem || argc < 1 || !argv || !argv[0])
+        return usage("comando, sessao ou filesystem port invalido");
+    if (!filesystem->change_directory || !filesystem->list_directory ||
+        !filesystem->create_file || !filesystem->create_directory ||
+        !filesystem->copy_file || !filesystem->move_entry ||
+        !filesystem->remove_file || !filesystem->remove_directory ||
+        !filesystem->get_info)
+        return usage("filesystem port incompleto");
 
     if (!strcmp(argv[0], "help")) {
         return argc == 1 ? app_result(FM_APP_HELP) : usage("Uso: help");
@@ -48,29 +55,29 @@ FileManagerAppResult fm_application_execute(
     if (!strcmp(argv[0], "ls")) {
         if (argc > 2) return usage("Uso: ls [caminho]");
         r = app_result(FM_APP_LIST);
-        r.operation = fm_list_directory(session, argc == 2 ? argv[1] : NULL, &r.list);
+        r.operation = filesystem->list_directory(session, argc == 2 ? argv[1] : NULL, &r.list);
         if (!r.operation.success) r.kind = FM_APP_OPERATION;
         return r;
     }
     if (!strcmp(argv[0], "cd")) {
         if (argc != 2) return usage("Uso: cd <diretorio>");
-        return operation(fm_change_directory(session, argv[1]));
+        return operation(filesystem->change_directory(session, argv[1]));
     }
     if (!strcmp(argv[0], "touch")) {
         if (argc != 2) return usage("Uso: touch <arquivo>");
-        return operation(fm_create_file(session, argv[1]));
+        return operation(filesystem->create_file(session, argv[1]));
     }
     if (!strcmp(argv[0], "mkdir")) {
         if (argc != 2) return usage("Uso: mkdir <diretorio>");
-        return operation(fm_create_directory(session, argv[1]));
+        return operation(filesystem->create_directory(session, argv[1]));
     }
     if (!strcmp(argv[0], "cp")) {
         if (argc != 3) return usage("Uso: cp <origem> <destino>");
-        return operation(fm_copy_file(session, argv[1], argv[2]));
+        return operation(filesystem->copy_file(session, argv[1], argv[2]));
     }
     if (!strcmp(argv[0], "mv")) {
         if (argc != 3) return usage("Uso: mv <origem> <destino>");
-        return operation(fm_move_entry(session, argv[1], argv[2]));
+        return operation(filesystem->move_entry(session, argv[1], argv[2]));
     }
     if (!strcmp(argv[0], "rm")) {
         if (argc != 2) return usage("Uso: rm <arquivo|link>");
@@ -80,7 +87,7 @@ FileManagerAppResult fm_application_execute(
             (void)snprintf(r.message, sizeof(r.message), "remover arquivo ou link");
             return r;
         }
-        return operation(fm_remove_file(session, argv[1]));
+        return operation(filesystem->remove_file(session, argv[1]));
     }
     if (!strcmp(argv[0], "rmdir")) {
         if (argc != 2) return usage("Uso: rmdir <diretorio vazio>");
@@ -90,12 +97,12 @@ FileManagerAppResult fm_application_execute(
             (void)snprintf(r.message, sizeof(r.message), "remover diretorio vazio");
             return r;
         }
-        return operation(fm_remove_directory(session, argv[1]));
+        return operation(filesystem->remove_directory(session, argv[1]));
     }
     if (!strcmp(argv[0], "stat")) {
         if (argc != 2) return usage("Uso: stat <caminho>");
         r = app_result(FM_APP_INFO);
-        r.operation = fm_get_info(session, argv[1], &r.info);
+        r.operation = filesystem->get_info(session, argv[1], &r.info);
         if (!r.operation.success) r.kind = FM_APP_OPERATION;
         return r;
     }

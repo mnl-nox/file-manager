@@ -2,6 +2,7 @@
 #include "terminal_ui.h"
 #include "command_parser.h"
 #include "file_manager_application.h"
+#include "filesystem_port.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -64,6 +65,7 @@ static int confirm_action(const char *verb, const char *path) {
 }
 
 int fm_terminal_ui_run(FileManagerSession *session) {
+    const FileSystemPort *filesystem = fm_posix_filesystem_port();
     char line[INPUT_SIZE];
     if (!session) return 1;
     separator();
@@ -72,7 +74,7 @@ int fm_terminal_ui_run(FileManagerSession *session) {
     help();
     {
         char *initial_argv[] = {"ls"};
-        FileManagerAppResult initial = fm_application_execute(session, 1, initial_argv, 0);
+        FileManagerAppResult initial = fm_application_execute(session, filesystem, 1, initial_argv, 0);
         if (initial.kind == FM_APP_LIST) { print_list(&initial.list); fm_list_free(&initial.list); }
         else if (initial.kind == FM_APP_OPERATION) print_result(initial.operation);
     }
@@ -97,10 +99,10 @@ int fm_terminal_ui_run(FileManagerSession *session) {
             continue;
         }
 
-        result = fm_application_execute(session, argc, argv, 0);
+        result = fm_application_execute(session, filesystem, argc, argv, 0);
         if (result.kind == FM_APP_CONFIRM) {
             if (confirm_action(result.message, result.value))
-                result = fm_application_execute(session, argc, argv, 1);
+                result = fm_application_execute(session, filesystem, argc, argv, 1);
             else {
                 puts("Operacao cancelada.");
                 continue;
