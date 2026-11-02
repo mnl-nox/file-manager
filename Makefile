@@ -1,24 +1,50 @@
-CC = gcc
-CFLAGS = -std=c11 -Wall -Wextra -pedantic -Iinclude
+CC ?= cc
+CPPFLAGS = -D_POSIX_C_SOURCE=200809L -Iinclude
+CFLAGS ?= -std=c11 -O2 -Wall -Wextra -Wpedantic -Wconversion -Wshadow
+LDFLAGS ?=
 
 APP = file-manager
 TEST_APP = test/file_manager_tests
+CORE = src/file_manager.c
+UI = ui/terminal_ui.c
+APP_SRC = $(CORE) src/command_parser.c src/file_manager_application.c src/main.c $(UI)
+TEST_SRC = $(CORE) test/test_file_manager.c
+PARSER_TEST_APP = test/command_parser_tests
+PARSER_TEST_SRC = src/command_parser.c test/test_command_parser.c
+APP_TEST_APP = test/application_tests
+APP_TEST_SRC = $(CORE) src/file_manager_application.c test/test_application.c
 
-SRC = src/file_manager.c src/main.c ui/terminal_ui.c
-TEST_SRC = src/file_manager.c test/test_file_manager.c
-
-.PHONY: all test clean
+.PHONY: all test test-asan debug clean
 
 all: $(APP)
 
-$(APP): $(SRC)
-	$(CC) $(CFLAGS) -o $@ $(SRC)
+$(APP): $(APP_SRC) include/file_manager.h include/terminal_ui.h include/command_parser.h include/file_manager_application.h
+	$(CC) $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) -o $@ $(APP_SRC)
 
-$(TEST_APP): $(TEST_SRC)
-	$(CC) $(CFLAGS) -o $@ $(TEST_SRC)
+$(TEST_APP): $(TEST_SRC) include/file_manager.h
+	$(CC) $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) -o $@ $(TEST_SRC)
 
-test: $(TEST_APP)
+$(PARSER_TEST_APP): $(PARSER_TEST_SRC) include/command_parser.h
+	$(CC) $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) -o $@ $(PARSER_TEST_SRC)
+
+$(APP_TEST_APP): $(APP_TEST_SRC) include/file_manager_application.h include/file_manager.h
+	$(CC) $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) -o $@ $(APP_TEST_SRC)
+
+test: $(TEST_APP) $(PARSER_TEST_APP) $(APP_TEST_APP)
 	./$(TEST_APP)
+	./$(PARSER_TEST_APP)
+	./$(APP_TEST_APP)
+
+test-asan:
+	$(CC) $(CPPFLAGS) -std=c11 -g -O1 -Wall -Wextra -Wpedantic -fsanitize=address,undefined -fno-omit-frame-pointer -o $(TEST_APP) $(TEST_SRC)
+	ASAN_OPTIONS=detect_leaks=1 ./$(TEST_APP)
+	$(CC) $(CPPFLAGS) -std=c11 -g -O1 -Wall -Wextra -Wpedantic -fsanitize=address,undefined -fno-omit-frame-pointer -o $(PARSER_TEST_APP) $(PARSER_TEST_SRC)
+	ASAN_OPTIONS=detect_leaks=1 ./$(PARSER_TEST_APP)
+	$(CC) $(CPPFLAGS) -std=c11 -g -O1 -Wall -Wextra -Wpedantic -fsanitize=address,undefined -fno-omit-frame-pointer -o $(APP_TEST_APP) $(APP_TEST_SRC)
+	ASAN_OPTIONS=detect_leaks=1 ./$(APP_TEST_APP)
+
+debug:
+	$(MAKE) CFLAGS="-std=c11 -O0 -g3 -Wall -Wextra -Wpedantic -Wconversion -Wshadow"
 
 clean:
-	rm -f $(APP) $(TEST_APP)
+	rm -f $(APP) $(TEST_APP) $(PARSER_TEST_APP) $(APP_TEST_APP)

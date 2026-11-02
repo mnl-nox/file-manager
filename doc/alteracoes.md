@@ -1,20 +1,28 @@
-# Registro de alteracoes
+# Registro de alterações
 
-## Versao inicial funcional
+## Entrega: operações essenciais e CLI robusta
 
-- Implementada a camada de servico em `src/file_manager.c`, com sessao,
-  listagem, navegacao e criacao de arquivos e diretorios.
-- Adicionado o contrato publico `include/file_manager.h` para separar a UI
-  das operacoes de arquivos.
-- Adicionada a interface textual em `ui/terminal_ui.c`, com cabecalho, ajuda,
-  prompt com diretorio atual, listagem em tabela e mensagens de sucesso/erro.
-- Simplificado `src/main.c` para inicializar a sessao e iniciar a UI.
-- Criado o `Makefile` com os alvos `make`, `make test` e `make clean`.
-- Criados testes de servico em `test/test_file_manager.c` para inicializacao,
-  criacao, listagem e navegacao.
+- Ampliado o contrato de entrada com tamanho, permissões, timestamp e tipo de link simbólico.
+- Melhorada a listagem para usar `lstat`, tratar erros de leitura/fechamento e ordenar entradas.
+- Adicionadas cópia de arquivos regulares, movimentação/renomeação, remoção de arquivos/links, remoção de diretórios vazios e metadados.
+- Cópia cria destino exclusivamente, trata escrita parcial/EINTR e tenta limpar destino incompleto.
+- Parser da UI agora aceita aspas simples/duplas, escapes e caminhos com espaços.
+- Remoção interativa exige confirmação.
+- Testes substituem shell cleanup por fixtures POSIX em diretório temporário.
+- Makefile inclui build rigoroso, testes e alvo ASan/UBSan.
+- Adicionada documentação de segurança e semântica.
 
-## Limitacoes conhecidas
+## Limitações remanescentes
 
-- O parser atual separa argumentos por espacos; caminhos com espacos ainda nao
-  sao suportados.
-- Copia, movimentacao, remocao e consulta de metadados continuam pendentes.
+- Não há isolamento contra TOCTOU em diretórios ancestrais concorrentes.
+- `mv` não garante no-replace atômico em todos os POSIX.
+- `cp` não copia diretórios nem metadados estendidos.
+- CI e refactor em camadas adicionais são etapas subsequentes.
+
+- Extraído o lexer para `src/command_parser.c`, com contrato próprio e testes unitários independentes.
+- Em Linux, `mv` utiliza `renameat2(RENAME_NOREPLACE)` quando disponível.
+- CI passa a executar AddressSanitizer e UndefinedBehaviorSanitizer.
+
+- Extraída a camada de aplicação para `src/file_manager_application.c`, com despacho de comandos sem I/O de terminal.
+- UI passou a renderizar resultados tipados e delegar casos de uso à aplicação.
+- Adicionados testes unitários da camada de aplicação, inclusive fluxo de confirmação destrutiva.

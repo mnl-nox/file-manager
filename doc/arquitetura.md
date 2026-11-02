@@ -1,84 +1,53 @@
 # Arquitetura
 
-## Visao geral
+## Objetivo
 
-A aplicacao deve ser organizada em camadas pequenas, com responsabilidades
-bem definidas:
+Separar apresentação, interpretação de comandos, casos de uso e operações de filesystem. A implementação evita abstrações genéricas prematuras; a fronteira de filesystem ainda é POSIX e poderá ser extraída para um adapter substituível na próxima etapa.
+
+## Componentes e fluxo
 
 ```text
-+----------------------+
-| Interface de terminal |
-|        (ui/)          |
-+----------+-----------+
-           |
-           v
-+----------------------+
-| Comandos e controle  |
-|        (src/)        |
-+----------+-----------+
-           |
-           v
-+----------------------+
-| Operacoes de arquivo |
-|        (src/)        |
-+----------+-----------+
-           |
-           v
-+----------------------+
-| Sistema operacional  |
-| POSIX / libc         |
-+----------------------+
+src/main.c
+  |-- inicializa sessão
+  |-- inicia terminal UI
+          |
+          v
+ui/terminal_ui.c
+  |-- leitura e renderização
+  |-- solicita execução à aplicação
+          |
+          +------> src/command_parser.c
+          |           |-- lexer sem dependências externas
+          |
+          +------> src/file_manager_application.c
+                      |-- valida comandos e aridade
+                      |-- coordena casos de uso
+                      |-- retorna resultados tipados
+                              |
+                              v
+                       include/file_manager.h
+                              |
+                              v
+                       src/file_manager.c
+                              |-- operações POSIX
+                              |-- regras de filesystem
+                              |-- tradução de errno
 ```
 
-## Responsabilidades
+## Responsabilidades e contratos
 
-### Interface (`ui/`)
+- `ui/terminal_ui.c` contém stdin/stdout, prompts de confirmação e renderização. Não executa syscalls de filesystem.
+- `src/command_parser.c` tokeniza uma linha in-place; não conhece UI, sessão ou filesystem.
+- `src/file_manager_application.c` valida e despacha comandos sem entrada/saída de terminal. Retorna um resultado tipado e sinaliza operações que exigem confirmação.
+- `src/file_manager.c` contém o serviço POSIX e não imprime nem lê stdin/stdout.
+- `FileManagerResult` transporta sucesso, código de erro, caminho e mensagem.
+- `FileManagerList` possui memória alocada pelo serviço; o consumidor deve chamar `fm_list_free`.
+- A UI é responsável por pedir confirmação; a aplicação só executa a operação destrutiva quando recebe `confirmed=1`.
 
-- Ler comandos e argumentos.
-- Exibir listagens, resultados e mensagens de erro.
-- Nao executar diretamente chamadas de baixo nivel quando houver uma camada
-  de servico disponivel.
+## Próxima separação estrutural
 
-### Inicializacao (`src/`)
+O próximo refactor deve introduzir um contrato `FileSystemPort` e mover a implementação POSIX para `adapters/posix/`. A aplicação passará a depender do contrato, permitindo fake filesystem em testes sem trocar o sistema de arquivos real. Esta etapa ainda não está implementada; a camada de aplicação atual continua chamando o serviço POSIX público.
 
-- Inicializar a sessao com o diretorio de trabalho atual.
-- Iniciar a interface de terminal.
+## Dependências
 
-### Operacoes de arquivo (`src/` e `include/`)
-
-- Encapsular chamadas como `opendir`, `readdir`, `stat`, `mkdir`, `remove`,
-  `rename` e operacoes de leitura e escrita.
-- Padronizar retorno de sucesso e erro.
-- Evitar que detalhes do sistema operacional vazem para a interface.
-
-### Dados (`data/`)
-
-No escopo inicial, `data/` pode armazenar arquivos de teste, exemplos ou
-configuracoes locais. O gerenciador deve tratar os arquivos do sistema como
-dados externos e nao depender de um banco de dados.
-
-## Fluxo de uma operacao
-
-1. O usuario informa um comando no terminal.
-2. A interface separa comando e argumentos.
-3. O controlador valida a entrada.
-4. O servico de arquivos executa a operacao.
-5. O resultado e devolvido a interface.
-6. A interface apresenta sucesso ou erro.
-
-## Principios
-
-- Separacao de responsabilidades.
-- Dependencias explicitas por headers em `include/`.
-- Tratamento de erros proximo da chamada que pode falhar.
-- Funcoes pequenas e testaveis.
-- Portabilidade sempre que nao comprometer a clareza.
-
-## Implementacao atual
-
-- `src/main.c` inicia `FileManagerSession` e chama a UI.
-- `ui/terminal_ui.c` le e interpreta os comandos, formata a tabela de
-  listagem e apresenta resultados.
-- `src/file_manager.c` executa as operacoes POSIX sem depender da interface.
-- `include/file_manager.h` e `include/terminal_ui.h` definem os contratos
-  entre os modulos.
+C11, libc e APIs POSIX. `O_NOFOLLOW` é uma extensão disponível nos sistemas Linux alvo. Em Linux, `renameat2(RENAME_NOREPLACE)` é usado para movimentação sem substituição quando suportado. Não há dependências de terceiros.
