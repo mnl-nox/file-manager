@@ -13,6 +13,7 @@
 #include <string.h>
 #include <sys/stat.h>
 #if defined(__linux__)
+#include <linux/openat2.h>
 #include <sys/syscall.h>
 #ifndef RENAME_NOREPLACE
 #define RENAME_NOREPLACE (1U << 0)
@@ -46,6 +47,8 @@ static FileManagerResult resolve_path(const FileManagerSession *s, const char *p
     return result_make(1, 0, out, "ok");
 }
 
+
+static int open_parent_directory(const char *path);
 
 /*
  * Resolve a leaf relative to an opened parent directory. The parent is pinned
@@ -84,10 +87,25 @@ static FileManagerResult resolve_parent(
     parent_len = (size_t)(slash - resolved);
     if (parent_len == 0) parent_len = 1;
     resolved[parent_len] = '\0';
-    fd = open(resolved, O_RDONLY | O_DIRECTORY | O_CLOEXEC);
+    fd = open_parent_directory(resolved);
     if (fd < 0) return result_make(0, errno, resolved, "abertura do diretorio pai: %s", strerror(errno));
     *parent_fd = fd;
     return result_make(1, 0, resolved, "diretorio pai aberto");
+}
+
+static int open_parent_directory(const char *path) {
+#if defined(__linux__) && defined(SYS_openat2)
+    struct open_how how;
+    int fd;
+    memset(&how, 0, sizeof(how));
+    how.flags = O_PATH | O_DIRECTORY | O_CLOEXEC;
+    how.resolve = RESOLVE_NO_MAGICLINKS;
+    fd = (int)syscall(SYS_openat2, AT_FDCWD, path, &how, sizeof(how));
+    if (fd >= 0) return fd;
+    /* Fall back only when the kernel does not implement this openat2 ABI. */
+    if (errno != ENOSYS && errno != EINVAL && errno != E2BIG) return -1;
+#endif
+    return open(path, O_RDONLY | O_DIRECTORY | O_CLOEXEC);
 }
 
 static FileManagerEntryType type_from_mode(mode_t mode) {
