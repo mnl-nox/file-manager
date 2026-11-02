@@ -6,19 +6,19 @@ LDFLAGS ?=
 APP = file-manager
 TEST_APP = test/file_manager_tests
 CORE = src/file_manager.c
+POSIX_ADAPTER = adapters/posix/filesystem_posix.c
 UI = ui/terminal_ui.c
-APP_SRC = $(CORE) src/command_parser.c src/file_manager_application.c src/main.c $(UI)
+APP_SRC = $(CORE) $(POSIX_ADAPTER) src/command_parser.c src/file_manager_application.c src/main.c $(UI)
 TEST_SRC = $(CORE) test/test_file_manager.c
 PARSER_TEST_APP = test/command_parser_tests
 PARSER_TEST_SRC = src/command_parser.c test/test_command_parser.c
 APP_TEST_APP = test/application_tests
-APP_TEST_SRC = $(CORE) src/file_manager_application.c test/test_application.c
+APP_TEST_SRC = $(CORE) $(POSIX_ADAPTER) src/file_manager_application.c test/test_application.c
 
 .PHONY: all test test-asan debug clean
-
 all: $(APP)
 
-$(APP): $(APP_SRC) include/file_manager.h include/terminal_ui.h include/command_parser.h include/file_manager_application.h
+$(APP): $(APP_SRC) include/file_manager.h include/terminal_ui.h include/command_parser.h include/file_manager_application.h include/filesystem_port.h
 	$(CC) $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) -o $@ $(APP_SRC)
 
 $(TEST_APP): $(TEST_SRC) include/file_manager.h
@@ -27,7 +27,7 @@ $(TEST_APP): $(TEST_SRC) include/file_manager.h
 $(PARSER_TEST_APP): $(PARSER_TEST_SRC) include/command_parser.h
 	$(CC) $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) -o $@ $(PARSER_TEST_SRC)
 
-$(APP_TEST_APP): $(APP_TEST_SRC) include/file_manager_application.h include/file_manager.h
+$(APP_TEST_APP): $(APP_TEST_SRC) include/file_manager_application.h include/filesystem_port.h include/file_manager.h
 	$(CC) $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) -o $@ $(APP_TEST_SRC)
 
 test: $(TEST_APP) $(PARSER_TEST_APP) $(APP_TEST_APP)

@@ -6,7 +6,7 @@ Gerenciador de arquivos interativo para Linux, escrito em C11 e baseado em APIs 
 
 ## Estado desta entrega
 
-Esta branch amplia a versão inicial com operações de cópia, movimentação, remoção controlada e consulta de metadados. A interface aceita caminhos com espaços entre aspas. A implementação permanece deliberadamente pequena: sem dependências externas e sem remoção recursiva.
+Esta branch amplia a versão inicial com operações de cópia, movimentação, remoção controlada e consulta de metadados. A interface aceita caminhos com espaços entre aspas. A implementação permanece deliberadamente pequena: sem dependências externas e sem remoção recursiva. A aplicação usa um FileSystemPort injetável e operações de folha relativas a descritores de diretório.
 
 ## Requisitos
 
@@ -73,17 +73,19 @@ Consulte [doc/seguranca.md](doc/seguranca.md) antes de usar em diretórios com d
 - `ui/terminal_ui.c`: leitura, despacho e renderização do terminal.
 - `src/command_parser.c`: lexer isolado, testado independentemente.
 - `src/file_manager_application.c`: validação e despacho de casos de uso sem I/O de terminal.
+- `include/filesystem_port.h`: contrato injetável de filesystem.
+- `adapters/posix/filesystem_posix.c`: adapter POSIX usado pela aplicação.
 - `src/main.c`: composition root e inicialização.
 - `test/test_file_manager.c`: testes POSIX com diretório temporário.
 
-A separação atual mantém parser e casos de uso fora da UI. O próximo refactor estrutural deve introduzir um `FileSystemPort` e mover o backend POSIX para `adapters/posix/`, permitindo fake filesystem nos testes.
+A aplicação recebe o FileSystemPort por injeção; os testes substituem operações por um fake. O backend POSIX está isolado em adapters/posix/.
 
 ## Limitações conhecidas
 
 - `cp` não copia diretórios, preserva ACLs, xattrs, ownership nem timestamps.
 - `mv` entre filesystems pode falhar com `EXDEV`; não faz fallback de cópia e remoção.
 - Não há remoção recursiva, busca, filtros, modo TUI ou operação em lote.
-- A implementação usa caminhos POSIX e não oferece isolamento contra mudanças concorrentes maliciosas nos diretórios ancestrais.
+- As operações finais usam dirfd (openat, fstatat, unlinkat, renameat2), mas a resolução do diretório pai ainda percorre componentes por pathname. Não é sandbox nem proteção completa contra adversário local que controla diretórios ancestrais.
 
 ## Licença
 

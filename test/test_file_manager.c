@@ -69,14 +69,16 @@ static int test_create_and_list(void) {
     FileManagerSession s;
     FileManagerList list;
     FileManagerResult r;
-    char file[FM_PATH_SIZE], dir[FM_PATH_SIZE];
+    char file[FM_PATH_SIZE], dir[FM_PATH_SIZE], nested[FM_PATH_SIZE];
     size_t i;
     int saw_file = 0, saw_dir = 0;
     session_at_temp(&s);
-    if (!make_path(file, "alpha.txt") || !make_path(dir, "docs")) return 0;
+    if (!make_path(file, "alpha.txt") || !make_path(dir, "docs") || !make_path(nested, "docs/nested.txt")) return 0;
     if (!check(fm_create_file(&s, "alpha.txt").success, "touch cria arquivo")) return 0;
     if (!check(!fm_create_file(&s, "alpha.txt").success, "touch nao sobrescreve")) return 0;
     if (!check(fm_create_directory(&s, "docs").success, "mkdir cria diretorio")) return 0;
+    if (!check(fm_create_file(&s, "docs/nested.txt").success, "openat cria entrada sob diretorio pai aberto")) return 0;
+    if (!check(fm_remove_file(&s, "docs/nested.txt").success, "unlinkat remove entrada sob diretorio pai aberto")) return 0;
     r = fm_list_directory(&s, NULL, &list);
     if (!check(r.success, "ls deve funcionar")) return 0;
     for (i = 0; i < list.count; ++i) {
@@ -149,6 +151,7 @@ static void cleanup(void) {
     for (i = 0; i < sizeof(files) / sizeof(files[0]); ++i)
         if (make_path(path, files[i])) (void)unlink(path);
     if (make_path(path, "empty")) (void)rmdir(path);
+    if (make_path(path, "docs/nested.txt")) (void)unlink(path);
     if (make_path(path, "docs")) (void)rmdir(path);
     (void)rmdir(temp_dir);
 }

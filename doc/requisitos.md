@@ -1,6 +1,6 @@
 # Requisitos de software
 
-Estado dos requisitos nesta entrega da branch `feat/complete-file-manager`.
+Estado dos requisitos nesta entrega da branch `feat/filesystem-port-dirfd-hardening`.
 
 ## Requisitos funcionais
 
@@ -32,7 +32,7 @@ Estado dos requisitos nesta entrega da branch `feat/complete-file-manager`.
 | RNF-07 | Sem banco de dados | Alta | Implementado |
 | RNF-08 | Ownership e liberação de memória | Alta | Lista liberada por `fm_list_free`; validar com sanitizers |
 | RNF-09 | Documentação Markdown | Media | Implementado |
-| RNF-10 | Módulos com headers públicos e responsabilidades separadas | Media | Parser e application separados; FileSystemPort/adapter POSIX permanece planejado |
+| RNF-10 | Módulos com headers públicos e responsabilidades separadas | Media | Parser, application, port e adapter POSIX separados |
 
 ## Restrições e limites
 
@@ -40,5 +40,5 @@ Estado dos requisitos nesta entrega da branch `feat/complete-file-manager`.
 - `cp` não copia diretórios nem metadados estendidos.
 - `mv` não faz fallback para cópia quando recebe `EXDEV`.
 - Não existe remoção recursiva.
-- O hardening contra TOCTOU com descritores de diretório permanece pendente.
+- Operações finais usam dirfd, mas a resolução de ancestrais ainda não é confinada por openat2 nem por raiz dirfd persistente.
 - O comportamento detalhado está em [seguranca.md](seguranca.md).
