@@ -1,27 +1,9 @@
-# Documentacao do projeto
+# Documentação técnica
 
-Documentacao tecnica do File Manager em C11/POSIX.
+- [Arquitetura](arquitetura.md): camadas, fluxo de execução, ownership e testes.
+- [Segurança](seguranca.md): modelo de ameaça, resolução de caminhos, symlinks e limites.
+- [Requisitos](requisitos.md): requisitos funcionais, não funcionais e restrições.
+- [Site e deploy](site-e-deploy.md): publicação contínua via GitHub Pages.
+- [Registro de alterações](alteracoes.md): decisões e incrementos relevantes.
 
-## Documentos
-
-- [Objetivos](objetivos.md): finalidade e escopo.
-- [Requisitos](requisitos.md): requisitos funcionais e nao funcionais, com estado.
-- [Arquitetura](arquitetura.md): componentes, contratos e fluxo em camadas.
-- [Seguranca](seguranca.md): links simbolicos, operacoes destrutivas, TOCTOU e limites.
-- [Modelo](modelo.md): entidades e estruturas de dados.
-- [Modelagem](modelagem.md): dominio, fluxo de dados e estados.
-- [Decisoes](decisoes.md): decisoes tecnicas.
-- [UML](uml.md): diagramas.
-- [Stack](stack.md): tecnologias e ferramentas.
-- [Alteracoes](alteracoes.md): historico das entregas.
-
-## Ciclo de desenvolvimento
-
-1. Requisitos e modelo de ameaca.
-2. Contratos e arquitetura.
-3. Implementacao incremental.
-4. Testes automatizados e sanitizers.
-5. CI e revisao.
-6. Documentacao e release.
-
-Referencia de codigo: [c-lab](https://github.com/mnl-nox/c-lab).
+O README na raiz contém instruções de compilação e uso. O site público é uma apresentação estática do projeto e não contém funcionalidades do gerenciador.

@@ -1,4 +1,4 @@
-name: C build and tests
+name: C build, tests and site validation
 
 on:
   push:
@@ -15,11 +15,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Install compiler
-        run: |
-          if [ "${{ matrix.compiler }}" = "clang" ]; then
-            sudo apt-get update
-            sudo apt-get install -y clang
-          fi
+        if: matrix.compiler == 'clang'
+        run: sudo apt-get update && sudo apt-get install -y clang
       - name: Build
         run: make CC=${{ matrix.compiler }}
       - name: Test
@@ -31,3 +28,15 @@ jobs:
       - uses: actions/checkout@v4
       - name: AddressSanitizer and UndefinedBehaviorSanitizer
         run: make test-asan
+
+  site:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate static site entry points
+        run: |
+          test -s site/index.html
+          test -s site/styles.css
+          grep -q 'name="viewport"' site/index.html
+          grep -q 'styles.css' site/index.html
+          grep -q '<title>File Manager' site/index.html
