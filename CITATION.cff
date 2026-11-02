@@ -1,0 +1,19 @@
+cff-version: 1.2.0
+message: "If you use this software in academic work, please cite the repository."
+title: "File Manager: a Linux terminal file manager implemented in C11"
+type: software
+authors:
+  - name: "File Manager contributors"
+repository-code: "https://github.com/mnl-nox/file-manager"
+url: "https://mnl-nox.github.io/file-manager/"
+license: MIT
+abstract: >-
+  A small Linux terminal application for filesystem operations, implemented
+  in C11 and documented as an educational open-source systems programming
+  project.
+keywords:
+  - C11
+  - Linux
+  - POSIX
+  - filesystem
+  - systems programming

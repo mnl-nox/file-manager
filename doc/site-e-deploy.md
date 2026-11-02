@@ -1,24 +1,50 @@
 # Site e publicação contínua
 
-## Stack
+## 1. Implementação
 
-O site é estático e independente do binário C: HTML semântico, CSS responsivo sem framework e GitHub Pages. A fonte fica em `site/`; o workflow publica somente esse diretório.
+O site é uma apresentação estática independente do executável C. É composto por HTML semântico e CSS responsivo, sem framework obrigatório. Os arquivos-fonte ficam em `site/`.
 
-## Fluxo CI/CD
+## 2. CI
 
-1. Pull requests para `main` executam build GCC/Clang, testes, sanitizers e validação estrutural do site.
-2. Push em `main` que altere `site/**` ou o workflow de deploy inicia a publicação.
-3. O workflow configura Pages, empacota `site/` e publica o artefato.
-4. URL esperada: https://mnl-nox.github.io/file-manager/.
+O workflow `.github/workflows/ci.yml` executa:
+- build com GCC e Clang;
+- testes automatizados;
+- ASan e UBSan;
+- validação estrutural mínima do HTML/CSS.
 
-Alterações exclusivas em C ou na documentação Markdown não disparam deploy. Atualize os arquivos em `site/` para publicar uma nova versão do site.
+A validação estrutural não equivale a uma auditoria completa de acessibilidade, HTML ou segurança web.
 
-## Configuração do GitHub
+## 3. CD
 
-O workflow usa `contents: read`, `pages: write` e `id-token: write`. Se a primeira execução indicar que Pages não está habilitado, abra Settings → Pages e selecione **GitHub Actions** como fonte de publicação. Não são necessários tokens pessoais ou secrets customizados.
+O workflow `.github/workflows/deploy-site.yml` é acionado:
+- em push para `main` quando `site/**` ou o próprio workflow de deploy muda;
+- manualmente por `workflow_dispatch`.
 
-## Atualização
+O artefato publicado é exclusivamente o conteúdo de `site/`.
 
-Edite `site/index.html` e `site/styles.css`, envie um pull request e aguarde o CI. Após o merge em `main`, o deploy é automático. Consulte Actions → Deploy website para o resultado e a URL publicada.
+## 4. Configuração necessária no GitHub
 
-O conteúdo do site é público. Não inclua segredos, tokens ou dados privados.
+No repositório:
+1. Acesse **Settings → Pages**.
+2. Defina **Build and deployment → Source** como **GitHub Actions**.
+3. Verifique se o workflow possui as permissões `contents: read`, `pages: write` e `id-token: write`.
+4. Consulte **Actions → Deploy website** para verificar o estado e a URL do deployment.
+
+URL esperada: <https://mnl-nox.github.io/file-manager/>.
+
+A configuração do workflow não comprova, por si só, que o domínio esteja publicado ou que DNS/Pages estejam corretamente habilitados. A confirmação deve ser feita no resultado do deployment e no acesso HTTP ao endereço.
+
+## 5. Atualização
+
+1. Edite os arquivos de `site/`.
+2. Verifique localmente HTML, CSS e responsividade.
+3. Abra Pull Request.
+4. Aguarde o CI.
+5. Faça merge em `main`.
+6. Confirme a execução do workflow de deploy.
+
+Alterações exclusivas em código C ou Markdown não iniciam publicação do site, a menos que o workflow de deploy também seja alterado.
+
+## 6. Segurança operacional
+
+O site é público. Não inclua tokens, credenciais, dados pessoais ou informações internas. Evite dependências externas desnecessárias e mantenha links e conteúdo revisados.
