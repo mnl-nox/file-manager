@@ -1,41 +1,43 @@
-# Stack utilizada
+# Stack tecnológica
 
-## Linguagem
+## Linguagem e padrão
 
-- **C11 ou superior**: linguagem principal do gerenciador.
+- C11, selecionado explicitamente por `-std=c11` no Makefile.
 
-## Bibliotecas e APIs
+## Plataforma e interfaces
 
-- **libc**: entrada e saida, memoria, strings e tratamento de erros.
-- **APIs POSIX**: diretorios, metadados, caminhos, arquivos e permissoes.
-- **stdio.h**, **stdlib.h**, **string.h**, **dirent.h**, **sys/stat.h** e
-  **errno.h**, conforme a necessidade de cada modulo.
+- Linux como plataforma-alvo.
+- libc e interfaces POSIX para arquivos e diretórios.
+- Extensões Linux condicionais, incluindo `openat2(2)` e `renameat2(2)`.
 
-As dependencias devem permanecer pequenas e preferencialmente disponiveis no
-ambiente do sistema.
+A utilização de uma extensão Linux não implica que ela esteja disponível em todos os kernels. Os fallbacks possuem limitações documentadas em [segurança](seguranca.md).
 
-## Compilacao
+## Ferramentas de build e validação
 
-Com GCC ou Clang:
+| Ferramenta | Uso |
+|---|---|
+| GCC | Compilação e testes no CI. |
+| Clang | Compilação e testes no CI. |
+| GNU Make | Automação de build e testes. |
+| AddressSanitizer | Detecção de erros de memória em execução. |
+| UndefinedBehaviorSanitizer | Detecção de classes de comportamento indefinido. |
+| Git / GitHub Actions | Versionamento, revisão e integração contínua. |
 
-```bash
-make
+## Flags do build padrão
+
+O Makefile declara:
+
+```text
+-std=c11 -O2 -Wall -Wextra -Wpedantic -Wconversion -Wshadow
 ```
 
-O `Makefile` compila `src/file_manager.c`, `src/main.c` e
-`ui/terminal_ui.c` com `-std=c11 -Wall -Wextra -pedantic`. Os testes podem ser
-executados com `make test`.
+## Comandos
 
-## Ferramentas de desenvolvimento
+```sh
+make
+make test
+make test-asan
+make clean
+```
 
-- Git para controle de versao.
-- Make ou tarefa equivalente para automatizar a compilacao.
-- GDB para depuracao.
-- Valgrind ou Sanitizers para detectar problemas de memoria.
-- Testes automatizados para validar operacoes de arquivo em diretorios
-  temporarios.
-
-## Ambiente alvo
-
-O alvo inicial e um sistema Unix-like, especialmente Linux, por depender de
-APIs POSIX para manipulacao de diretorios e metadados.
+Para detalhes do ambiente e diagnóstico, consulte [desenvolvimento](desenvolvimento.md).

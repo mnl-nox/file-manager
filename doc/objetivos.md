@@ -1,38 +1,25 @@
-# Objetivos
+# Objetivos e escopo
+
+Este arquivo preserva o endereço documental histórico. A definição atual do projeto está centralizada em [visao-geral.md](visao-geral.md).
 
 ## Objetivo geral
 
-Construir um gerenciador de arquivos de terminal, escrito em C, que permita
-realizar operacoes comuns sobre arquivos e diretorios de forma simples,
-previsivel e extensivel.
+Desenvolver um gerenciador de arquivos de terminal para Linux, em C11, que permita operações explícitas sobre arquivos e diretórios e sirva como base de estudo de programação de sistemas e interfaces POSIX.
 
-## Objetivos especificos
+## Objetivos específicos atuais
 
-- Listar o conteudo do diretorio atual.
-- Navegar entre diretorios.
-- Criar e remover arquivos e diretorios.
-- Copiar e mover arquivos.
-- Remover arquivos com confirmacao quando necessario.
-- Exibir informacoes basicas, como tipo, tamanho e permissoes.
-- Informar erros de forma clara, sem encerrar a aplicacao inesperadamente.
-- Manter a camada de interface separada da camada de operacoes do sistema.
+- listar entradas e metadados básicos;
+- navegar entre diretórios;
+- criar arquivos e diretórios;
+- copiar arquivos regulares;
+- mover ou renomear entradas;
+- remover arquivos, links simbólicos e diretórios vazios;
+- consultar metadados;
+- separar UI, parser, aplicação e contrato de filesystem;
+- manter testes automatizados e documentação de segurança.
 
-## Escopo inicial
+## Fora do escopo
 
-A primeira versao funciona em modo interativo no terminal e atende navegacao,
-listagem e criacao de arquivos e diretorios. A interface esta implementada em
-`ui/terminal_ui.c`; `data/` permanece reservado para extensoes futuras.
+Não há suporte a sandbox, operações privilegiadas, remoção recursiva, cópia recursiva, sincronização em nuvem, indexação global ou interface gráfica.
 
-## Fora do escopo inicial
-
-- Sincronizacao com nuvem.
-- Gerenciamento de usuarios ou autenticacao.
-- Indexacao global do sistema de arquivos.
-- Operacoes privilegiadas ou alteracao de configuracoes do sistema.
-
-## Criterios de sucesso
-
-- O programa compila sem warnings com as flags definidas na stack.
-- As operacoes basicas retornam sucesso ou erro de maneira verificavel.
-- Caminhos invalidos e permissoes insuficientes sao tratados.
-- A logica pode ser testada sem depender diretamente da interface.
+Consulte [requisitos](requisitos.md) para o estado verificável de cada funcionalidade.

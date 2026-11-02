@@ -1,91 +1,48 @@
-# Modelagem
+# Modelagem do domínio
 
-## Modelo de dominio
+Este documento descreve o modelo atual. A modelagem é deliberadamente pequena: a aplicação mantém uma sessão de navegação, recebe comandos e representa resultados de operações sobre entradas do filesystem.
 
-O sistema representa uma sessao de navegacao que opera sobre entradas do
-sistema de arquivos. Uma entrada pode ser um arquivo, diretorio ou outro tipo
-reconhecido pelo sistema operacional.
+## Entidades e estruturas implementadas
 
-```mermaid
-classDiagram
-    class Sessao {
-        +string diretorioAtual
-        +iniciar()
-        +encerrar()
-    }
+| Conceito | Estrutura C | Campos relevantes |
+|---|---|---|
+| Sessão | `FileManagerSession` | `current_directory` |
+| Entrada | `FileManagerEntry` | `name`, `type`, `size`, `mode`, `modified_at` |
+| Lista de entradas | `FileManagerList` | `entries`, `count` |
+| Resultado de filesystem | `FileManagerResult` | `success`, `error_code`, `path`, `message` |
+| Comando | vetor `argv` | nome do comando e argumentos produzidos pelo parser |
+| Resultado de aplicação | `FileManagerAppResult` | tipo do resultado, mensagem, dados de operação e eventual confirmação |
 
-    class Comando {
-        +string nome
-        +string[] argumentos
-    }
+As estruturas de filesystem estão declaradas em `include/file_manager.h`. Os tipos de aplicação e parser estão nos respectivos headers em `include/`.
 
-    class Caminho {
-        +string valor
-        +resolver()
-        +validar()
-    }
-
-    class Entrada {
-        +string nome
-        +TipoEntrada tipo
-        +long tamanho
-        +string permissoes
-    }
-
-    class Resultado {
-        +bool sucesso
-        +int codigo
-        +string mensagem
-    }
-
-    Sessao --> Comando : recebe
-    Sessao --> Caminho : usa
-    Caminho --> Entrada : localiza
-    Comando --> Resultado : produz
-```
-
-## Fluxo de dados
+## Fluxo conceitual
 
 ```mermaid
 flowchart LR
-    EntradaUsuario[Entrada do usuario]
-    Parser[Parser de comandos]
-    Validador[Validador de argumentos]
-    Servico[Servico de arquivos]
-    Sistema[Sistema de arquivos]
-    Resposta[Resultado formatado]
-
-    EntradaUsuario --> Parser
-    Parser --> Validador
-    Validador --> Servico
-    Servico --> Sistema
-    Sistema --> Servico
-    Servico --> Resposta
-    Resposta --> EntradaUsuario
+    Input["Linha de entrada"] --> Parser["Parser"]
+    Parser --> Args["argc / argv"]
+    Args --> App["Application"]
+    App --> Port["FileSystemPort"]
+    Port --> Ops["Operações de filesystem"]
+    Ops --> Result["FileManagerResult"]
+    Result --> UI["Renderização"]
 ```
 
-## Estados de uma operacao
+## Ciclo de vida de uma operação
 
 ```mermaid
 stateDiagram-v2
     [*] --> Recebida
-    Recebida --> Validando
-    Validando --> Executando: argumentos validos
-    Validando --> Falha: argumentos invalidos
-    Executando --> Sucesso: operacao concluida
-    Executando --> Falha: erro do sistema
+    Recebida --> Interpretada
+    Interpretada --> Validada
+    Validada --> Executada: argumentos válidos
+    Validada --> Erro: argumentos inválidos
+    Executada --> Sucesso: operação concluída
+    Executada --> Erro: falha do sistema
     Sucesso --> [*]
-    Falha --> [*]
+    Erro --> [*]
 ```
 
-## Estruturas de dados previstas
+## Ownership
 
-- `Comando`: nome da acao e lista de argumentos.
-- `Caminho`: texto original e, quando necessario, forma normalizada.
-- `Entrada`: metadados retornados por `readdir` e `stat`.
-- `Resultado`: status, codigo e mensagem para a camada de interface.
-- `Sessao`: contexto do diretorio atual e configuracoes da execucao.
-
-Os tipos concretos estao definidos em `include/file_manager.h`. Nesta primeira
-versao, `Entrada` contem nome e tipo; tamanho e permissoes serao incluidos ao
-implementar a consulta de metadados.
+O vetor `FileManagerList.entries` é alocado pelo serviço e deve ser liberado com `fm_list_free()`. Descritores abertos pelas operações pertencem ao fluxo que os abriu e devem ser fechados em caminhos de sucesso e falha. Consulte [arquitetura](arquitetura.md) para os contratos completos.
