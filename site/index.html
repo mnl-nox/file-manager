@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#0b0c0b">
+<meta name="description" content="File Manager — gerenciador de arquivos para Linux, escrito em C11.">
+<title>File Manager — MNL-NOX</title><link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<a class="skip" href="#main">Pular para o conteúdo</a>
+<header class="shell top"><a class="brand" href="#top"><b>[FM]</b> MNL-NOX <i>/</i> FILE MANAGER</a>
+<nav><a href="#features">RECURSOS</a><a href="#architecture">ARQUITETURA</a><a href="#security">SEGURANÇA</a><a class="green" href="https://github.com/mnl-nox/file-manager">GITHUB ↗</a></nav></header>
+<main id="main">
+<section class="shell hero" id="top"><p class="eyebrow">● LINUX · C11 · POSIX</p><p class="tag">01 — FILESYSTEM TOOLING</p>
+<h1>FILESYSTEM.<br><em>SEM RUÍDO.</em></h1>
+<div class="intro"><p>Um gerenciador de arquivos de terminal, construído em C. Pequeno por fora. Explícito por dentro.</p>
+<div class="actions"><a class="button" href="https://github.com/mnl-nox/file-manager">VER REPOSITÓRIO ↗</a><a class="link" href="https://github.com/mnl-nox/file-manager/tree/main/doc">DOCUMENTAÇÃO ↗</a></div></div>
+<div class="rule"><span>01 / 04</span><span>BUILT FOR THE TERMINAL</span><span>OPEN SOURCE · MIT</span></div></section>
+<section class="shell section" id="features"><div class="heading"><p class="tag">02 — CAPACIDADES</p><h2>O essencial.<br><em>Bem definido.</em></h2></div>
+<div class="cards"><article><small>A / 01</small><h3>Operações diretas</h3><p>Listar, navegar, criar, copiar, mover, remover e inspecionar metadados sem interface desnecessária.</p></article>
+<article><small>A / 02</small><h3>Camadas separadas</h3><p>Parser, aplicação, contrato de filesystem, adapter POSIX e UI com responsabilidades explícitas.</p></article>
+<article><small>A / 03</small><h3>Sem dependências extras</h3><p>C11, GNU Make e APIs POSIX/Linux. Código pequeno, compilação local e testes automatizados.</p></article></div></section>
+<section class="terminal" id="architecture"><div class="shell terminal-grid"><div><p class="tag">03 — QUICK START</p><h2>Do clone<br>ao terminal.</h2><p>Compile localmente. Inspecione o código. Execute os testes antes de usar.</p></div>
+<div class="console"><div class="bar"><span>● ● ●</span><small>LOCAL / SHELL</small></div><pre><code><b>$</b> git clone https://github.com/mnl-nox/file-manager.git
+<b>$</b> cd file-manager
+<b>$</b> make
+<b>$</b> make test
+<b>$</b> ./file-manager</code></pre><div class="foot">C11 / GCC OR CLANG / LINUX</div></div></div></section>
+<section class="shell section security" id="security"><div><p class="tag">04 — TRUST BOUNDARY</p><h2>Segurança não<br><em>é decoração.</em></h2></div>
+<div class="copy"><p>As operações finais usam descritores de diretório. No Linux, a resolução do diretório pai usa <code>openat2</code> com <code>RESOLVE_NO_MAGICLINKS</code> quando disponível. Links simbólicos comuns continuam permitidos nos componentes intermediários.</p>
+<p class="warning"><b>!</b> O File Manager não é uma sandbox. Opera com as permissões do usuário atual. Em kernels sem <code>openat2</code>, o fallback não oferece a mesma proteção contra magic links.</p>
+<a class="link" href="https://github.com/mnl-nox/file-manager/blob/main/doc/seguranca.md">LEIA O MODELO DE SEGURANÇA ↗</a></div></section>
+</main><footer><div class="shell footrow"><a class="brand" href="#top"><b>[FM]</b> MNL-NOX</a><span>BUILT IN C · RELEASED UNDER MIT</span><a href="https://github.com/mnl-nox/file-manager">SOURCE CODE ↗</a></div></footer>
+</body></html>

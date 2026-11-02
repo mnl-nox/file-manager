@@ -70,6 +70,8 @@ static int test_session(void) {
     if (!getcwd(cwd, sizeof(cwd))) return 0;
     if (!check(strcmp(cwd, s.current_directory) == 0, "sessao deve refletir cwd")) return 0;
     if (!check(fm_get_info(&s, "/", &root_info).success && root_info.type == FM_ENTRY_DIRECTORY, "stat da raiz deve funcionar")) return 0;
+    if (!check(fm_get_info(&s, ".", &root_info).success && root_info.type == FM_ENTRY_DIRECTORY, "stat . deve funcionar")) return 0;
+    if (!check(fm_get_info(&s, "..", &root_info).success && root_info.type == FM_ENTRY_DIRECTORY, "stat .. deve funcionar")) return 0;
     return 1;
 }
 
@@ -125,7 +127,14 @@ static int test_move_and_remove(void) {
     if (!check(fm_remove_file(&s, "move-me").success, "rm remove origem de teste")) return 0;
     if (!check(fm_remove_file(&s, "moved").success, "rm remove arquivo")) return 0;
     if (!check(!exists(to), "rm remove entrada")) return 0;
-    return check(!fm_remove_file(&s, "docs").success, "rm nao remove diretorio");
+    if (!check(!fm_remove_file(&s, "docs").success, "rm nao remove diretorio")) return 0;
+    if (!write_fixture(from, "preservar")) return 0;
+    if (!check(!fm_remove_file(&s, "move-me/").success && exists(from),
+               "rm com barra final deve rejeitar arquivo e preservar a entrada")) return 0;
+    if (!check(fm_create_directory(&s, "slash-dir").success, "cria diretorio para teste de barra final")) return 0;
+    if (!check(fm_remove_directory(&s, "slash-dir/").success,
+               "rmdir deve aceitar diretorio com barra final")) return 0;
+    return 1;
 }
 
 static int test_symlink_and_empty_directory_policy(void) {
